@@ -1,8 +1,13 @@
-# SiteFocus — 網站封鎖專注插件
+# SiteFocus — 網站封鎖專注插件 | Website Blocker & Focus Plugin
+
+[繁體中文](#繁體中文) | [English](#english)
+
+---
+
+<a name="繁體中文"></a>
+## 🚀 核心功能 (Traditional Chinese)
 
 **SiteFocus** 是一款 Chrome/Edge 瀏覽器插件 (Manifest V3)，旨在幫助使用者封鎖分心網站、建立專注習慣，並提供彈性的排程與 Pomodoro 統計功能。
-
-## 🚀 核心功能
 
 - **網站封鎖 (Block List)**：手動輸入網域或完整 URL，支援 `*.domain.com` 萬用字元。
 - **白名單模式 (Whitelist)**：可切換為僅允許特定網站。
@@ -14,7 +19,6 @@
 - **資料隱私**：所有資料儲存於 `chrome.storage.local`，不上傳至外部伺服器。
 
 ## 📂 檔案結構
-
 ```text
 site-blocker/
 ├── manifest.json      # 插件配置 (MV3)
@@ -28,16 +32,46 @@ site-blocker/
 ```
 
 ## 🛠 安裝教學
-
 1. 下載或複製品資到本地資料夾。
 2. 開啟 Chrome 瀏覽器，前往 `chrome://extensions/`。
 3. 右上角開啟「**開發人員模式**」。
 4. 點擊「**載入未封裝項目**」，選擇 `site-blocker` 資料夾。
 
-## 📝 開發說明
+---
 
-本專案採用 **Manifest V3** 標準，使用 `chrome.declarativeNetRequest` (DNR) 進行高效能的請求攔截。
+<a name="english"></a>
+## 🚀 Features (English)
+
+**SiteFocus** is a Chrome/Edge browser extension (Manifest V3) designed to help users block distracting websites, build focus habits, and provide flexible scheduling with Pomodoro statistics.
+
+- **Website Blocking (Block List)**: Manually enter domains or full URLs, supports `*.domain.com` wildcards.
+- **Whitelist Mode**: Switch to "Allow-Only" mode where only listed sites are accessible.
+- **Schedule Management**: Set blocking periods (days of the week, start/end times) for each entry.
+- **Focus Timer (Pomodoro)**: Built-in 25/5 min timer. Automatically blocks sites during focus sessions and shows a floating timer in the corner.
+- **Temporary Unblock (Break/Snooze)**: Supports "Cool-down Timer (wait N seconds)", "Password Protection", or "Snooze for X minutes".
+- **Statistics & Reports**: Daily charts for blocked attempts and completed focus sessions (last 7/30 days).
+- **Password Protection**: Lock the options page to prevent unauthorized changes to the block list.
+- **Privacy Focus**: All data is stored locally in `chrome.storage.local`, no data is sent to external servers.
+
+## 📂 File Structure
+```text
+site-blocker/
+├── manifest.json      # Extension Config (MV3)
+├── background.js      # Service Worker: DNR rules & timer logic
+├── utils.js / stats.js # Utils & Statistics recording
+├── content.js/css     # Injected floating timer widget
+├── blocked.html/js/css # Custom blocked landing page
+├── popup.html/js/css   # Toolbar popup UI
+├── options.html/js/css # Advanced settings page
+└── icons/             # Extension icons
+```
+
+## 🛠 Installation
+1. Download or clone this repository to your local machine.
+2. Open Chrome/Edge and navigate to `chrome://extensions/`.
+3. Enable "**Developer mode**" in the top right corner.
+4. Click "**Load unpacked**" and select the `site-blocker` folder.
 
 ---
 
-*專注是成功的關鍵。*
+*Focus is the key to success.*
