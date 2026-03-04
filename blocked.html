@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>網站已封鎖 — SiteFocus</title>
+  <link rel="stylesheet" href="blocked.css" />
+</head>
+<body>
+  <div class="blocked-container">
+    <div class="blocked-card">
+      <!-- Logo / Icon -->
+      <div class="blocked-icon">🚫</div>
+
+      <!-- 封鎖資訊 -->
+      <h1 class="blocked-title">網站已封鎖</h1>
+      <p class="blocked-domain" id="blocked-domain">example.com</p>
+
+      <!-- 激勵語句 -->
+      <blockquote class="blocked-quote" id="blocked-quote"></blockquote>
+
+      <!-- 排程資訊 -->
+      <p class="blocked-schedule" id="blocked-schedule" style="display:none;"></p>
+
+      <!-- 冷靜計時器 / 暫時解除 -->
+      <div class="blocked-actions">
+        <button class="btn btn-primary" id="btn-snooze">暫時解除封鎖</button>
+        <button class="btn btn-secondary" id="btn-back">← 返回</button>
+      </div>
+
+      <!-- 冷靜計時器狀態 -->
+      <div id="cooldown-area" style="display:none;">
+        <p class="cooldown-text">請等待 <span id="cooldown-counter">30</span> 秒後確認…</p>
+        <button class="btn btn-warning" id="btn-confirm-snooze" disabled>確認暫時解除</button>
+      </div>
+
+      <!-- 密碼輸入 -->
+      <div id="password-area" style="display:none;">
+        <input type="password" id="password-input" class="password-input" placeholder="請輸入密碼" autocomplete="off" />
+        <p class="password-hint" id="password-hint" style="display:none;"></p>
+        <button class="btn btn-warning" id="btn-confirm-password">確認</button>
+        <p class="password-error" id="password-error" style="display:none;">密碼錯誤，請重試。</p>
+      </div>
+    </div>
+  </div>
+  <script src="blocked.js"></script>
+</body>
+</html>

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SiteFocus 設定</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <div class="options-layout">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-logo">
+        <span>🎯</span>
+        <span>SiteFocus</span>
+      </div>
+      <ul class="sidebar-nav">
+        <li class="nav-item active" data-tab="blocklist">🚫 封鎖清單</li>
+        <li class="nav-item" data-tab="schedule">📅 排程</li>
+        <li class="nav-item" data-tab="focus">⏱ 專注模式</li>
+        <li class="nav-item" data-tab="break">⏸ 暫時解除</li>
+        <li class="nav-item" data-tab="stats">📊 統計</li>
+        <li class="nav-item" data-tab="password">🔒 密碼</li>
+        <li class="nav-item" data-tab="about">ℹ️ 關於</li>
+      </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="options-main">
+
+      <!-- ─── 封鎖清單 ─────────────────────────────── -->
+      <section class="tab-panel active" id="tab-blocklist">
+        <h2 class="panel-title">封鎖清單</h2>
+
+        <!-- 模式切換 -->
+        <div class="card mode-toggle-card">
+          <label class="mode-label">
+            <input type="radio" name="mode" value="blocklist" id="mode-blocklist" />
+            <span><strong>封鎖清單模式</strong>：封鎖指定網站</span>
+          </label>
+          <label class="mode-label">
+            <input type="radio" name="mode" value="whitelist" id="mode-whitelist" />
+            <span><strong>白名單模式</strong>：只允許清單內網站</span>
+          </label>
+        </div>
+
+        <!-- 新增網站 -->
+        <div class="card">
+          <h3 class="card-title" id="add-list-title">新增至封鎖清單</h3>
+          <div class="input-row">
+            <input type="text" id="new-pattern" class="text-input" placeholder="例如：youtube.com、*.reddit.com" />
+            <button class="btn btn-primary" id="btn-add-pattern">新增</button>
+          </div>
+        </div>
+
+        <!-- 快速分類 -->
+        <div class="card">
+          <h3 class="card-title">快速加入分類</h3>
+          <div class="category-grid" id="category-grid">
+            <button class="category-btn" data-category="social">📱 Social Media</button>
+            <button class="category-btn" data-category="news">📰 News</button>
+            <button class="category-btn" data-category="video">🎬 Video / Streaming</button>
+            <button class="category-btn" data-category="gaming">🎮 Gaming</button>
+          </div>
+        </div>
+
+        <!-- 清單 -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title" id="list-display-title">封鎖清單</h3>
+            <div class="card-actions">
+              <button class="btn btn-sm btn-secondary" id="btn-export">匯出</button>
+              <button class="btn btn-sm btn-secondary" id="btn-import-trigger">匯入</button>
+              <input type="file" id="btn-import" accept=".json" style="display:none;" />
+            </div>
+          </div>
+          <div id="blocklist-container">
+            <p class="empty-hint" id="blocklist-empty">清單為空。請新增網站或使用快速分類。</p>
+            <ul class="site-list" id="blocklist-items"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── 排程 ────────────────────────────────── -->
+      <section class="tab-panel" id="tab-schedule">
+        <h2 class="panel-title">排程封鎖</h2>
+        <p class="panel-desc">針對每個封鎖清單條目設定指定封鎖時段。非時段期間自動解除封鎖。</p>
+        <div id="schedule-list">
+          <p class="empty-hint">封鎖清單為空，請先至「封鎖清單」頁面新增網站。</p>
+        </div>
+      </section>
+
+      <!-- ─── 專注模式 ──────────────────────────────── -->
+      <section class="tab-panel" id="tab-focus">
+        <h2 class="panel-title">專注模式設定</h2>
+        <div class="card">
+          <div class="form-group">
+            <label class="form-label">專注時長（分鐘）</label>
+            <input type="number" id="focus-duration" class="text-input w120" min="1" max="120" value="25" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">休息時長（分鐘）</label>
+            <input type="number" id="break-duration" class="text-input w120" min="1" max="60" value="5" />
+          </div>
+          <button class="btn btn-primary" id="btn-save-focus">儲存設定</button>
+          <span class="save-feedback" id="focus-saved" style="display:none;">✓ 已儲存</span>
+        </div>
+      </section>
+
+      <!-- ─── 暫時解除 ──────────────────────────────── -->
+      <section class="tab-panel" id="tab-break">
+        <h2 class="panel-title">暫時解除封鎖設定</h2>
+        <div class="card">
+          <div class="form-group">
+            <label class="form-label">解除方式</label>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="break-type" value="cooldown" id="break-cooldown" />
+                冷靜計時器（等待 N 秒後才可解除）
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="break-type" value="password" id="break-password" />
+                密碼保護（輸入密碼解除）
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="break-type" value="timed" id="break-timed" />
+                固定時長解除（解除後自動重新封鎖）
+              </label>
+            </div>
+          </div>
+          <div class="form-group" id="cooldown-sec-group">
+            <label class="form-label">冷靜等待秒數</label>
+            <input type="number" id="cooldown-seconds" class="text-input w120" min="5" max="300" value="30" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">解除封鎖時長（分鐘）</label>
+            <input type="number" id="timed-minutes" class="text-input w120" min="1" max="60" value="5" />
+          </div>
+          <button class="btn btn-primary" id="btn-save-break">儲存設定</button>
+          <span class="save-feedback" id="break-saved" style="display:none;">✓ 已儲存</span>
+        </div>
+      </section>
+
+      <!-- ─── 統計 ────────────────────────────────── -->
+      <section class="tab-panel" id="tab-stats">
+        <h2 class="panel-title">統計報表</h2>
+        <div class="stats-period-toggle">
+          <button class="btn btn-sm btn-secondary active-period" id="btn-7days" data-period="7">過去 7 天</button>
+          <button class="btn btn-sm btn-secondary" id="btn-30days" data-period="30">過去 30 天</button>
+        </div>
+        <div class="card">
+          <h3 class="card-title">封鎖次數</h3>
+          <div class="chart-container" id="chart-blocked"></div>
+        </div>
+        <div class="card">
+          <h3 class="card-title">專注 Sessions</h3>
+          <div class="chart-container" id="chart-focus"></div>
+        </div>
+        <button class="btn btn-danger" id="btn-clear-stats">清除統計資料</button>
+      </section>
+
+      <!-- ─── 密碼 ────────────────────────────────── -->
+      <section class="tab-panel" id="tab-password">
+        <h2 class="panel-title">密碼保護</h2>
+        <div class="card">
+          <p class="panel-desc">設定密碼後，修改封鎖清單與設定均需輸入密碼。密碼以 SHA-256 hash 儲存，無法還原。</p>
+
+          <div id="current-password-status"></div>
+
+          <div class="form-group">
+            <label class="form-label" id="pw-action-label">設定新密碼</label>
+            <input type="password" id="pw-old" class="text-input" placeholder="舊密碼" style="display:none;" autocomplete="current-password" />
+            <input type="password" id="pw-new" class="text-input" placeholder="新密碼" autocomplete="new-password" />
+            <input type="password" id="pw-confirm" class="text-input" placeholder="確認新密碼" autocomplete="new-password" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">密碼提示（非密碼本身）</label>
+            <input type="text" id="pw-hint" class="text-input" placeholder="選填" />
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-primary" id="btn-save-password">設定密碼</button>
+            <button class="btn btn-danger" id="btn-remove-password" style="display:none;">移除密碼</button>
+          </div>
+          <p class="error-msg" id="pw-error" style="display:none;"></p>
+          <span class="save-feedback" id="pw-saved" style="display:none;">✓ 密碼已更新</span>
+        </div>
+      </section>
+
+      <!-- ─── 關於 ────────────────────────────────── -->
+      <section class="tab-panel" id="tab-about">
+        <h2 class="panel-title">關於 SiteFocus</h2>
+        <div class="card about-card">
+          <div class="about-logo">🎯</div>
+          <h3>SiteFocus</h3>
+          <p class="about-version">版本 1.0.0</p>
+          <p class="about-desc">一款幫助您封鎖分心網站、建立專注習慣的 Chrome/Edge 瀏覽器插件。</p>
+          <ul class="about-features">
+            <li>✅ 封鎖清單 / 白名單模式</li>
+            <li>✅ 排程封鎖（星期 + 時段）</li>
+            <li>✅ Pomodoro 專注計時器</li>
+            <li>✅ 暫時解除封鎖（冷靜計時 / 密碼 / 固定時長）</li>
+            <li>✅ 統計報表（7 / 30 天）</li>
+            <li>✅ 密碼保護設定頁</li>
+            <li>✅ 匯入 / 匯出封鎖清單</li>
+          </ul>
+          <p class="about-privacy">🔒 所有資料僅儲存於本地，不上傳至任何伺服器。</p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

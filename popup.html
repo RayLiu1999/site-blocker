@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SiteFocus</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="popup-wrap">
+    <!-- Header -->
+    <header class="popup-header">
+      <div class="popup-logo">
+        <span class="logo-icon">🎯</span>
+        <span class="logo-text">SiteFocus</span>
+      </div>
+      <button class="icon-btn" id="btn-settings" title="設定">⚙️</button>
+    </header>
+
+    <!-- 啟用/停用封鎖 -->
+    <section class="popup-section toggle-section">
+      <span class="section-label">封鎖狀態</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="toggle-enabled" />
+        <span class="slider"></span>
+      </label>
+      <span class="toggle-state-text" id="toggle-state-text">啟用中</span>
+    </section>
+
+    <!-- 專注模式 -->
+    <section class="popup-section focus-section">
+      <div class="focus-header">
+        <span class="section-label">專注模式</span>
+        <span class="focus-timer-display" id="focus-timer-display" style="display:none;"></span>
+      </div>
+      <div class="focus-controls">
+        <div class="focus-phase-badge" id="focus-phase-badge" style="display:none;"></div>
+        <button class="btn btn-focus" id="btn-focus-toggle">▶ 開始</button>
+        <span class="focus-duration-label" id="focus-duration-label">25 分鐘</span>
+      </div>
+    </section>
+
+    <!-- 一鍵封鎖目前網站 -->
+    <section class="popup-section block-current-section">
+      <button class="btn btn-block-this" id="btn-block-this">＋ 封鎖目前網站</button>
+      <span class="current-url-label" id="current-url-label"></span>
+    </section>
+
+    <!-- 今日統計 -->
+    <section class="popup-section stats-section">
+      <div class="stat-item">
+        <span class="stat-icon">🚫</span>
+        <span class="stat-text">今日封鎖 <strong id="stat-blocked">0</strong> 次</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-icon">✅</span>
+        <span class="stat-text">專注完成 <strong id="stat-sessions">0</strong> sessions</span>
+      </div>
+    </section>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
