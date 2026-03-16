@@ -1,6 +1,6 @@
 // background.js — Service Worker：攔截請求、排程邏輯、計時器
 
-import { isInSchedule, extractHostname, DEFAULT_STORAGE } from './utils.js';
+import { isInSchedule, extractHostname, matchesPattern, DEFAULT_STORAGE } from './utils.js';
 import { recordBlockedAttempt, recordFocusSession } from './stats.js';
 
 const BLOCKED_PAGE = chrome.runtime.getURL('blocked.html');
@@ -44,8 +44,8 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 // DNR 規則建立
 // ─────────────────────────────────────────────
 async function rebuildDNRRules() {
-  const data = await chrome.storage.local.get(['enabled', 'mode', 'blocklist', 'whitelist', 'focusMode']);
-  const { enabled, mode, blocklist = [], whitelist = [], focusMode } = data;
+  const data = await chrome.storage.local.get(['enabled', 'mode', 'blocklist', 'whitelist', 'focusMode', 'snoozeUntil']);
+  const { enabled, mode, blocklist = [], whitelist = [], focusMode, snoozeUntil } = data;
 
   // 移除所有現有動態規則
   const existing = await chrome.declarativeNetRequest.getDynamicRules();
@@ -55,6 +55,9 @@ async function rebuildDNRRules() {
   }
 
   if (!enabled) return;
+
+  // 暫時解除封鎖期間 → 不封鎖
+  if (snoozeUntil && Date.now() < snoozeUntil) return;
 
   // 專注休息階段 → 不封鎖
   if (focusMode?.isRunning && focusMode?.phase === 'break') return;
@@ -219,6 +222,8 @@ async function handleFocusAlarm() {
 
     chrome.alarms.create(FOCUS_ALARM, { when: endTime });
     await rebuildDNRRules();
+    // 休息結束，把仍開著的被封鎖 SPA 頁面踢走
+    await redirectBlockedTabs();
 
     chrome.notifications.create({
       type: 'basic',
@@ -257,12 +262,8 @@ async function startSnooze(minutes) {
   const endTime = Date.now() + minutes * 60 * 1000;
   await chrome.storage.local.set({ snoozeUntil: endTime });
 
-  // 暫時停用所有動態規則
-  const existing = await chrome.declarativeNetRequest.getDynamicRules();
-  const existingIds = existing.map(r => r.id);
-  if (existingIds.length > 0) {
-    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: existingIds });
-  }
+  // 立即重新建立規則（會因為 snoozeUntil 套用而不加入任何封鎖規則）
+  await rebuildDNRRules();
 
   chrome.alarms.create('snooze-end', { when: endTime });
 }
@@ -271,9 +272,51 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === 'snooze-end') {
     await chrome.storage.local.remove('snoozeUntil');
     await rebuildDNRRules();
+    // 主動把仍開著的被封鎖網站 Tab 重導向（解決 SPA 無法被攔截的問題）
+    await redirectBlockedTabs();
     chrome.runtime.sendMessage({ type: 'SNOOZE_ENDED' }).catch(() => {});
   }
 });
+
+/**
+ * 掃描所有開著的 Tab，把符合封鎖清單的 Tab 導向 blocked.html
+ */
+async function redirectBlockedTabs() {
+  const data = await chrome.storage.local.get(['enabled', 'mode', 'blocklist', 'whitelist', 'focusMode', 'snoozeUntil']);
+  const { enabled, mode, blocklist = [], whitelist = [], focusMode, snoozeUntil } = data;
+
+  // 若仍在 snooze 或停用或專注休息，不重導
+  if (!enabled) return;
+  if (snoozeUntil && Date.now() < snoozeUntil) return;
+  if (focusMode?.isRunning && focusMode?.phase === 'break') return;
+
+  const tabs = await chrome.tabs.query({});
+
+  for (const tab of tabs) {
+    const url = tab.url;
+    if (!url || url.startsWith('chrome://') || url.startsWith('chrome-extension://')) continue;
+
+    let shouldBlock = false;
+
+    if (mode === 'whitelist') {
+      const inWhitelist = whitelist.some(e => matchesPattern(url, e.pattern));
+      shouldBlock = !inWhitelist;
+    } else {
+      for (const entry of blocklist) {
+        if (entry.schedule?.enabled && !isInSchedule(entry.schedule)) continue;
+        if (matchesPattern(url, entry.pattern)) {
+          shouldBlock = true;
+          break;
+        }
+      }
+    }
+
+    if (shouldBlock) {
+      const encoded = encodeURIComponent(extractHostname(url));
+      chrome.tabs.update(tab.id, { url: BLOCKED_PAGE + '?url=' + encoded }).catch(() => {});
+    }
+  }
+}
 
 // ─────────────────────────────────────────────
 // 訊息處理（來自 popup / options / blocked）
