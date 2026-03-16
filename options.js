@@ -250,11 +250,13 @@ async function renderSchedule() {
     div.innerHTML = `
       <div class="schedule-item-header">
         <span class="schedule-item-pattern">${entry.pattern}</span>
-        <label class="toggle-small">
-          <input type="checkbox" class="schedule-enabled" data-index="${index}" ${schedule.enabled ? 'checked' : ''} />
-          <span class="slider"></span>
-        </label>
-        <span style="font-size:12px;color:var(--text-muted);">${schedule.enabled ? '排程啟用' : '排程停用'}</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="schedule-status-text" style="font-size:12px;color:var(--text-muted);">${schedule.enabled ? '排程啟用' : '排程停用'}</span>
+          <label class="toggle-small">
+            <input type="checkbox" class="schedule-enabled" data-index="${index}" ${schedule.enabled ? 'checked' : ''} />
+            <span class="slider"></span>
+          </label>
+        </div>
       </div>
       <div class="schedule-body" style="${schedule.enabled ? '' : 'opacity:0.4;pointer-events:none;'}">
         <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">封鎖星期</div>
@@ -316,7 +318,7 @@ async function saveScheduleChange(container, blocklist) {
       body.style.opacity = enabled ? '1' : '0.4';
       body.style.pointerEvents = enabled ? '' : 'none';
     }
-    const label = item.querySelector('.schedule-item-header span:last-child');
+    const label = item.querySelector('.schedule-status-text');
     if (label) label.textContent = enabled ? '排程啟用' : '排程停用';
   });
 
@@ -378,6 +380,8 @@ async function renderBreakSettings() {
 function toggleCooldownGroup(type) {
   document.getElementById('cooldown-sec-group').style.display =
     type === 'cooldown' ? 'block' : 'none';
+  document.getElementById('password-setup-hint').style.display =
+    type === 'password' ? 'block' : 'none';
 }
 
 // ─────────────────────────────────────────────
