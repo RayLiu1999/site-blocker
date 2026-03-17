@@ -84,14 +84,24 @@ export function isInSchedule(schedule) {
 
   if (!schedule.days.includes(day)) return false;
 
-  const [startH, startM] = schedule.startTime.split(':').map(Number);
-  const [endH, endM] = schedule.endTime.split(':').map(Number);
+  // 兼容舊資料結構：如果只有 startTime 和 endTime，則轉為一組 timeSlots
+  const timeSlots = schedule.timeSlots || [];
+  if (timeSlots.length === 0 && schedule.startTime && schedule.endTime) {
+    timeSlots.push({ startTime: schedule.startTime, endTime: schedule.endTime });
+  }
+
+  if (timeSlots.length === 0) return false;
 
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  const startMinutes = startH * 60 + startM;
-  const endMinutes = endH * 60 + endM;
 
-  return nowMinutes >= startMinutes && nowMinutes < endMinutes;
+  // 只要其中一個時段符合，就回傳 true
+  return timeSlots.some(slot => {
+    const [startH, startM] = slot.startTime.split(':').map(Number);
+    const [endH, endM] = slot.endTime.split(':').map(Number);
+    const startMinutes = startH * 60 + startM;
+    const endMinutes = endH * 60 + endM;
+    return nowMinutes >= startMinutes && nowMinutes < endMinutes;
+  });
 }
 
 /**

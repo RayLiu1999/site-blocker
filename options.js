@@ -75,7 +75,7 @@ async function renderBlocklist() {
       id: generateId(),
       pattern,
       category: 'manual',
-      schedule: { enabled: false, days: [1,2,3,4,5], startTime: '09:00', endTime: '18:00' }
+      schedule: { enabled: false, days: [1,2,3,4,5], timeSlots: [{ startTime: '09:00', endTime: '18:00' }] }
     };
 
     currentList.push(newEntry);
@@ -163,7 +163,7 @@ function setupCategoryButtons() {
             id: generateId(),
             pattern: domain,
             category,
-            schedule: { enabled: false, days: [1,2,3,4,5], startTime: '09:00', endTime: '18:00' }
+            schedule: { enabled: false, days: [1,2,3,4,5], timeSlots: [{ startTime: '09:00', endTime: '18:00' }] }
           });
           added++;
         }
@@ -243,9 +243,27 @@ async function renderSchedule() {
   container.innerHTML = '';
 
   blocklist.forEach((entry, index) => {
-    const schedule = entry.schedule || { enabled: false, days: [1,2,3,4,5], startTime: '09:00', endTime: '18:00' };
+    let schedule = entry.schedule || { enabled: false, days: [1,2,3,4,5] };
+    if (!schedule.timeSlots) {
+      if (schedule.startTime && schedule.endTime) {
+        schedule.timeSlots = [{ startTime: schedule.startTime, endTime: schedule.endTime }];
+      } else {
+        schedule.timeSlots = [{ startTime: '09:00', endTime: '18:00' }];
+      }
+    }
+
     const div = document.createElement('div');
     div.className = 'schedule-item';
+
+    const timeSlotsHtml = schedule.timeSlots.map((slot, sIdx) => `
+      <div class="schedule-time-row" style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+        <span style="font-size:12px;color:var(--text-muted);">時段 ${sIdx + 1}：</span>
+        <input type="time" class="text-input w120 schedule-start" data-index="${index}" data-slot="${sIdx}" value="${slot.startTime || '09:00'}" />
+        <span>—</span>
+        <input type="time" class="text-input w120 schedule-end" data-index="${index}" data-slot="${sIdx}" value="${slot.endTime || '18:00'}" />
+        ${schedule.timeSlots.length > 1 ? `<button class="btn-icon delete-slot" data-index="${index}" data-slot="${sIdx}" title="刪除時段">🗑</button>` : ''}
+      </div>
+    `).join('');
 
     div.innerHTML = `
       <div class="schedule-item-header">
@@ -260,7 +278,7 @@ async function renderSchedule() {
       </div>
       <div class="schedule-body" style="${schedule.enabled ? '' : 'opacity:0.4;pointer-events:none;'}">
         <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">封鎖星期</div>
-        <div class="schedule-days">
+        <div class="schedule-days" style="margin-bottom: 12px;">
           ${DAY_LABELS.map((d, i) => `
             <label class="day-label">
               <input type="checkbox" class="day-check" data-index="${index}" data-day="${i}" ${(schedule.days || []).includes(i) ? 'checked' : ''} />
@@ -268,11 +286,9 @@ async function renderSchedule() {
             </label>
           `).join('')}
         </div>
-        <div class="schedule-time-row">
-          <span style="font-size:12px;color:var(--text-muted);">時段：</span>
-          <input type="time" class="text-input w120 schedule-start" data-index="${index}" value="${schedule.startTime || '09:00'}" />
-          <span>—</span>
-          <input type="time" class="text-input w120 schedule-end" data-index="${index}" value="${schedule.endTime || '18:00'}" />
+        <div class="schedule-times">
+          ${timeSlotsHtml}
+          <button class="btn btn-sm btn-secondary add-slot" data-index="${index}" style="margin-top: 4px;">＋ 新增時段</button>
         </div>
       </div>
     `;
@@ -290,6 +306,26 @@ async function renderSchedule() {
   container.querySelectorAll('.schedule-start, .schedule-end').forEach(el => {
     el.addEventListener('change', () => saveScheduleChange(container, blocklist));
   });
+  container.querySelectorAll('.add-slot').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const idx = parseInt(btn.dataset.index);
+      const schedule = blocklist[idx].schedule;
+      schedule.timeSlots.push({ startTime: '09:00', endTime: '18:00' });
+      await chrome.storage.local.set({ blocklist });
+      await chrome.runtime.sendMessage({ type: 'REBUILD_RULES' });
+      await renderSchedule();
+    });
+  });
+  container.querySelectorAll('.delete-slot').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const idx = parseInt(btn.dataset.index);
+      const slotIdx = parseInt(btn.dataset.slot);
+      blocklist[idx].schedule.timeSlots.splice(slotIdx, 1);
+      await chrome.storage.local.set({ blocklist });
+      await chrome.runtime.sendMessage({ type: 'REBUILD_RULES' });
+      await renderSchedule();
+    });
+  });
 }
 
 async function saveScheduleChange(container, blocklist) {
@@ -304,12 +340,17 @@ async function saveScheduleChange(container, blocklist) {
     item.querySelectorAll('.day-check').forEach(dc => {
       if (dc.checked) days.push(parseInt(dc.dataset.day));
     });
-    const startTime = item.querySelector('.schedule-start')?.value || '09:00';
-    const endTime = item.querySelector('.schedule-end')?.value || '18:00';
+    
+    const timeSlots = [];
+    item.querySelectorAll('.schedule-time-row').forEach(row => {
+      const startTime = row.querySelector('.schedule-start')?.value || '09:00';
+      const endTime = row.querySelector('.schedule-end')?.value || '18:00';
+      timeSlots.push({ startTime, endTime });
+    });
 
     updatedList[index] = {
       ...updatedList[index],
-      schedule: { enabled, days, startTime, endTime }
+      schedule: { enabled, days, timeSlots }
     };
 
     // Toggle body opacity
