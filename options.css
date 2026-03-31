@@ -162,6 +162,7 @@ body {
 .text-input:focus { border-color: var(--accent); }
 .text-input::placeholder { color: var(--text-muted); }
 .text-input.w120 { flex: none; width: 120px; }
+.text-input.w140 { flex: none; width: 140px; }
 
 /* Category Grid */
 .category-grid {

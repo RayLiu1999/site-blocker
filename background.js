@@ -138,13 +138,38 @@ function buildDNRConditions(pattern, startId) {
       }
     ];
   } else if (!pattern.includes('/') && !pattern.includes('*')) {
-    // 純域名
+    // 純域名（不自動包含所有子網域，但包含 www）
+    const domain = pattern.replace(/^www\./, '');
     return [
       {
         priority: 2,
         action,
         condition: {
-          urlFilter: `||${pattern}`,
+          urlFilter: `|http://${domain}/*`,
+          resourceTypes: ['main_frame'],
+        }
+      },
+      {
+        priority: 2,
+        action,
+        condition: {
+          urlFilter: `|https://${domain}/*`,
+          resourceTypes: ['main_frame'],
+        }
+      },
+      {
+        priority: 2,
+        action,
+        condition: {
+          urlFilter: `|http://www.${domain}/*`,
+          resourceTypes: ['main_frame'],
+        }
+      },
+      {
+        priority: 2,
+        action,
+        condition: {
+          urlFilter: `|https://www.${domain}/*`,
           resourceTypes: ['main_frame'],
         }
       }

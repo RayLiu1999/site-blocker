@@ -258,9 +258,9 @@ async function renderSchedule() {
     const timeSlotsHtml = schedule.timeSlots.map((slot, sIdx) => `
       <div class="schedule-time-row" style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
         <span style="font-size:12px;color:var(--text-muted);">時段 ${sIdx + 1}：</span>
-        <input type="time" class="text-input w120 schedule-start" data-index="${index}" data-slot="${sIdx}" value="${slot.startTime || '09:00'}" />
+        <input type="time" class="text-input w140 schedule-start" data-index="${index}" data-slot="${sIdx}" value="${slot.startTime || '09:00'}" />
         <span>—</span>
-        <input type="time" class="text-input w120 schedule-end" data-index="${index}" data-slot="${sIdx}" value="${slot.endTime || '18:00'}" />
+        <input type="time" class="text-input w140 schedule-end" data-index="${index}" data-slot="${sIdx}" value="${slot.endTime || '18:00'}" />
         ${schedule.timeSlots.length > 1 ? `<button class="btn-icon delete-slot" data-index="${index}" data-slot="${sIdx}" title="刪除時段">🗑</button>` : ''}
       </div>
     `).join('');
@@ -288,7 +288,10 @@ async function renderSchedule() {
         </div>
         <div class="schedule-times">
           ${timeSlotsHtml}
-          <button class="btn btn-sm btn-secondary add-slot" data-index="${index}" style="margin-top: 4px;">＋ 新增時段</button>
+          <div style="margin-top: 8px; display: flex; gap: 8px;">
+            <button class="btn btn-sm btn-secondary add-slot" data-index="${index}">＋ 新增時段</button>
+            <button class="btn btn-sm btn-secondary apply-all-slot" data-index="${index}" style="border-color: var(--accent); color: var(--accent);">套用至所有網站</button>
+          </div>
         </div>
       </div>
     `;
@@ -309,9 +312,12 @@ async function renderSchedule() {
   container.querySelectorAll('.add-slot').forEach(btn => {
     btn.addEventListener('click', async () => {
       const idx = parseInt(btn.dataset.index);
-      const schedule = blocklist[idx].schedule;
+      await saveScheduleChange(container, blocklist);
+      const data = await chrome.storage.local.get('blocklist');
+      const latestList = data.blocklist || [];
+      const schedule = latestList[idx].schedule;
       schedule.timeSlots.push({ startTime: '09:00', endTime: '18:00' });
-      await chrome.storage.local.set({ blocklist });
+      await chrome.storage.local.set({ blocklist: latestList });
       await chrome.runtime.sendMessage({ type: 'REBUILD_RULES' });
       await renderSchedule();
     });
@@ -320,8 +326,29 @@ async function renderSchedule() {
     btn.addEventListener('click', async () => {
       const idx = parseInt(btn.dataset.index);
       const slotIdx = parseInt(btn.dataset.slot);
-      blocklist[idx].schedule.timeSlots.splice(slotIdx, 1);
-      await chrome.storage.local.set({ blocklist });
+      await saveScheduleChange(container, blocklist);
+      const data = await chrome.storage.local.get('blocklist');
+      const latestList = data.blocklist || [];
+      latestList[idx].schedule.timeSlots.splice(slotIdx, 1);
+      await chrome.storage.local.set({ blocklist: latestList });
+      await chrome.runtime.sendMessage({ type: 'REBUILD_RULES' });
+      await renderSchedule();
+    });
+  });
+  container.querySelectorAll('.apply-all-slot').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('確定要將此網站的排程套用到所有封鎖清單內的網站嗎？\\n（這將覆蓋所有其他網站的「排程設定」與「時段」）')) return;
+      const idx = parseInt(btn.dataset.index);
+      await saveScheduleChange(container, blocklist);
+      const data = await chrome.storage.local.get('blocklist');
+      const latestList = data.blocklist || [];
+      const sourceSchedule = JSON.parse(JSON.stringify(latestList[idx].schedule));
+      latestList.forEach((item, index) => {
+        if (index !== idx) {
+          item.schedule = JSON.parse(JSON.stringify(sourceSchedule));
+        }
+      });
+      await chrome.storage.local.set({ blocklist: latestList });
       await chrome.runtime.sendMessage({ type: 'REBUILD_RULES' });
       await renderSchedule();
     });

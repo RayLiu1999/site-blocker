@@ -43,15 +43,15 @@ export function matchesPattern(url, pattern) {
     const hostname = urlObj.hostname.replace(/^www\./, '');
     const fullPath = hostname + urlObj.pathname;
 
-    // 純域名模式（無路徑萬用字元）— 匹配所有子域
+    // 純域名模式（無路徑萬用字元）— 精確匹配特定網域 (包含 www)
     if (!pattern.includes('/') && !pattern.startsWith('*')) {
       const domain = pattern.replace(/^www\./, '');
-      return hostname === domain || hostname.endsWith('.' + domain);
+      return hostname === domain || hostname === 'www.' + domain;
     }
 
-    // 萬用字元前綴 *.example.com
+    // 萬用字元前綴 *.example.com — 匹配該網域的所有子域
     if (pattern.startsWith('*.')) {
-      const domain = pattern.slice(2);
+      const domain = pattern.slice(2).replace(/^www\./, '');
       return hostname === domain || hostname.endsWith('.' + domain);
     }
 
