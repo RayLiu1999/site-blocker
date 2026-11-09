@@ -1,52 +1,51 @@
-/* content.css — 浮動計時器樣式 */
+/* content.css — 浮動計時器樣式（所有規則限定在 #sitefocus-timer 內，避免影響網頁） */
 
 #sitefocus-timer {
+  all: initial;
   position: fixed;
-  bottom: 20px;
   right: 20px;
+  bottom: 20px;
   z-index: 2147483647;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 8px 14px 8px 10px;
   border-radius: 999px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-  cursor: default;
-  user-select: none;
-  transition: opacity 0.3s ease;
-  opacity: 0.9;
-}
-
-#sitefocus-timer:hover {
-  opacity: 1;
-}
-
-#sitefocus-timer.sitefocus-focus {
-  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  background: #e0352b;
   color: #fff;
-}
-
-#sitefocus-timer.sitefocus-break {
-  background: linear-gradient(135deg, #059669, #10b981);
-  color: #fff;
-}
-
-.sitefocus-icon {
-  font-size: 18px;
-}
-
-.sitefocus-label {
+  font-family: system-ui, -apple-system, "PingFang TC", "Noto Sans TC", sans-serif;
   font-size: 13px;
-  opacity: 0.9;
+  font-weight: 600;
+  line-height: 1;
+  box-shadow: 0 6px 20px rgba(120, 20, 10, 0.3);
+  opacity: 0.92;
+  pointer-events: none;
+  user-select: none;
 }
 
-.sitefocus-countdown {
-  font-size: 16px;
-  font-variant-numeric: tabular-nums;
+#sitefocus-timer.sitefocus-break { background: #2f8f4e; box-shadow: 0 6px 20px rgba(20, 70, 35, 0.3); }
+
+#sitefocus-timer .sitefocus-dot {
+  all: initial;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0.85;
+}
+
+#sitefocus-timer .sitefocus-label {
+  all: initial;
+  color: inherit;
+  font: inherit;
+  opacity: 0.85;
+}
+
+#sitefocus-timer .sitefocus-countdown {
+  all: initial;
+  color: inherit;
+  font-family: ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
+  font-size: 15px;
   font-weight: 700;
-  min-width: 40px;
-  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
