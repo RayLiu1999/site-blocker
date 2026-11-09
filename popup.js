@@ -5,7 +5,7 @@ import { normalizeSchedule } from './utils.js';
 let focusEndTime = null;
 let focusUpdateInterval = null;
 
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener("DOMContentLoaded", async () => {
   await renderAll();
 
   // 監聽 storage 變化（即時同步）
@@ -14,14 +14,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // 設定按鈕
-  document.getElementById('btn-settings').addEventListener('click', () => {
+  document.getElementById("btn-settings").addEventListener("click", () => {
     chrome.runtime.openOptionsPage();
   });
 });
 
 async function renderAll() {
   const data = await chrome.storage.local.get([
-    'focusMode', 'stats'
+    "focusMode",
+    "stats",
   ]);
 
   renderFocusMode(data.focusMode);
@@ -33,44 +34,44 @@ async function renderAll() {
 // 專注模式
 // ─────────────────────────────────────────────
 function renderFocusMode(fm) {
-  const timerDisplay = document.getElementById('focus-timer-display');
-  const phaseBadge = document.getElementById('focus-phase-badge');
-  const focusBtn = document.getElementById('btn-focus-toggle');
-  const durationLabel = document.getElementById('focus-duration-label');
+  const timerDisplay = document.getElementById("focus-timer-display");
+  const phaseBadge = document.getElementById("focus-phase-badge");
+  const focusBtn = document.getElementById("btn-focus-toggle");
+  const durationLabel = document.getElementById("focus-duration-label");
 
   const isRunning = fm?.isRunning;
-  const phase = fm?.phase || 'focus';
+  const phase = fm?.phase || "focus";
   const focusDuration = fm?.focusDuration || 25;
   const breakDuration = fm?.breakDuration || 5;
 
   durationLabel.textContent = `${focusDuration}m / ${breakDuration}m`;
 
   if (isRunning) {
-    focusBtn.textContent = '■ 停止';
-    focusBtn.className = 'btn btn-focus running';
-    timerDisplay.style.display = 'inline';
-    phaseBadge.style.display = 'inline';
-    phaseBadge.textContent = phase === 'focus' ? '🎯 專注中' : '☕ 休息中';
+    focusBtn.textContent = "■ 停止";
+    focusBtn.className = "btn btn-focus running";
+    timerDisplay.style.display = "inline";
+    phaseBadge.style.display = "inline";
+    phaseBadge.textContent = phase === "focus" ? "🎯 專注中" : "☕ 休息中";
 
     focusEndTime = fm.endTime;
     startFocusCountdown();
   } else {
-    focusBtn.textContent = '▶ 開始';
-    focusBtn.className = 'btn btn-focus';
-    timerDisplay.style.display = 'none';
-    phaseBadge.style.display = 'none';
+    focusBtn.textContent = "▶ 開始";
+    focusBtn.className = "btn btn-focus";
+    timerDisplay.style.display = "none";
+    phaseBadge.style.display = "none";
     stopFocusCountdown();
   }
 
   focusBtn.onclick = async () => {
     if (!isRunning) {
       await chrome.runtime.sendMessage({
-        type: 'START_FOCUS',
+        type: "START_FOCUS",
         focusDuration,
         breakDuration,
       });
     } else {
-      await chrome.runtime.sendMessage({ type: 'STOP_FOCUS' });
+      await chrome.runtime.sendMessage({ type: "STOP_FOCUS" });
     }
   };
 }
@@ -89,12 +90,14 @@ function stopFocusCountdown() {
 }
 
 function updateCountdown() {
-  const el = document.getElementById('focus-timer-display');
+  const el = document.getElementById("focus-timer-display");
   if (!el || !focusEndTime) return;
   const remaining = Math.max(0, focusEndTime - Date.now());
   const totalSec = Math.ceil(remaining / 1000);
-  const m = Math.floor(totalSec / 60).toString().padStart(2, '0');
-  const s = (totalSec % 60).toString().padStart(2, '0');
+  const m = Math.floor(totalSec / 60)
+    .toString()
+    .padStart(2, "0");
+  const s = (totalSec % 60).toString().padStart(2, "0");
   el.textContent = `${m}:${s}`;
 }
 
@@ -102,56 +105,67 @@ function updateCountdown() {
 // 一鍵封鎖目前網站
 // ─────────────────────────────────────────────
 async function renderBlockThisButton() {
-  const btn = document.getElementById('btn-block-this');
-  const label = document.getElementById('current-url-label');
+  const btn = document.getElementById("btn-block-this");
+  const label = document.getElementById("current-url-label");
 
-  let currentUrl = '';
+  let currentUrl = "";
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    currentUrl = tab?.url || '';
-  } catch { }
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
+    currentUrl = tab?.url || "";
+  } catch {}
 
-  let hostname = '';
+  let hostname = "";
   try {
-    hostname = new URL(currentUrl).hostname.replace(/^www\./, '');
-  } catch { }
+    hostname = new URL(currentUrl).hostname.replace(/^www\./, "");
+  } catch {}
 
-  if (!hostname || currentUrl.startsWith('chrome://') || currentUrl.startsWith('chrome-extension://')) {
-    btn.textContent = '＋ 封鎖目前網站';
-    label.textContent = '（無法封鎖此頁面）';
+  if (
+    !hostname ||
+    currentUrl.startsWith("chrome://") ||
+    currentUrl.startsWith("chrome-extension://")
+  ) {
+    btn.textContent = "＋ 封鎖目前網站";
+    label.textContent = "（無法封鎖此頁面）";
     btn.disabled = true;
-    btn.style.opacity = '0.4';
+    btn.style.opacity = "0.4";
     return;
   }
 
   label.textContent = hostname;
   btn.disabled = false;
-  btn.style.opacity = '1';
+  btn.style.opacity = "1";
 
   // 檢查是否已在封鎖清單
-  const data = await chrome.storage.local.get('blocklist');
+  const data = await chrome.storage.local.get("blocklist");
   const blocklist = data.blocklist || [];
-  const alreadyBlocked = blocklist.some(e =>
-    e.pattern === hostname || e.pattern === `*.${hostname}`
+  const alreadyBlocked = blocklist.some(
+    (e) => e.pattern === hostname || e.pattern === `*.${hostname}`,
   );
 
   if (alreadyBlocked) {
-    btn.textContent = '✓ 已在封鎖清單';
-    btn.className = 'btn btn-block-this blocked';
+    btn.textContent = "✓ 已在封鎖清單";
+    btn.className = "btn btn-block-this blocked";
     btn.onclick = null;
   } else {
-    btn.textContent = '＋ 封鎖目前網站';
-    btn.className = 'btn btn-block-this';
+    btn.textContent = "＋ 封鎖目前網站";
+    btn.className = "btn btn-block-this";
     btn.onclick = async () => {
       const newEntry = {
         id: crypto.randomUUID(),
         pattern: hostname,
-        category: 'manual',
-        schedule: normalizeSchedule({ enabled: false, days: [0,1,2,3,4,5,6], timeSlots: [{ startTime: '00:00', endTime: '23:59' }] })
+        category: "manual",
+        schedule: normalizeSchedule({
+          enabled: false,
+          days: [0, 1, 2, 3, 4, 5, 6],
+          timeSlots: [{ startTime: "00:00", endTime: "23:59" }],
+        }),
       };
       const updated = [...blocklist, newEntry];
       await chrome.storage.local.set({ blocklist: updated });
-      await chrome.runtime.sendMessage({ type: 'REBUILD_RULES' });
+      await chrome.runtime.sendMessage({ type: "REBUILD_RULES" });
       await renderBlockThisButton();
     };
   }
@@ -164,9 +178,12 @@ function renderStats(statsData) {
   const today = new Date().toISOString().slice(0, 10);
   const daily = statsData?.daily?.[today] || {};
 
-  const blockedTotal = Object.values(daily.blockedAttempts || {}).reduce((a, b) => a + b, 0);
+  const blockedTotal = Object.values(daily.blockedAttempts || {}).reduce(
+    (a, b) => a + b,
+    0,
+  );
   const sessions = daily.focusSessions || 0;
 
-  document.getElementById('stat-blocked').textContent = blockedTotal;
-  document.getElementById('stat-sessions').textContent = sessions;
+  document.getElementById("stat-blocked").textContent = blockedTotal;
+  document.getElementById("stat-sessions").textContent = sessions;
 }
