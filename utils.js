@@ -14,61 +14,132 @@ export async function sha256(text) {
 }
 
 /**
- * 將 pattern 轉換為正則表達式
- * 支援 *.example.com 與 example.com/* 等萬用字元
- * @param {string} pattern
- * @returns {RegExp}
+ * 將使用者輸入的網址 / 網域整理成統一格式；無效時回傳 null。
+ * 規則：
+ *   - example.com        → 只比對 example.com 與 www.example.com
+ *   - *.example.com      → 比對 example.com 與所有子網域
+ *   - example.com/path*  → 比對該網域（含 www）下以 /path 開頭的網址，* 為萬用字元
+ * 會去除 scheme、www.、port、結尾的 / 或 /*，並轉小寫、將國際化網域轉為 punycode。
+ * @param {string} input
+ * @returns {string|null}
  */
-export function patternToRegex(pattern) {
-  // 移除 http:// / https:// / www. 前綴（讓比對更寬鬆）
-  let p = pattern.trim();
+export function normalizePattern(input) {
+  if (typeof input !== 'string') return null;
+  let s = input.trim().toLowerCase();
+  if (!s) return null;
 
-  // 建立 escaped regex，將 * 轉為 .*
-  const escaped = p
-    .replace(/[.+?^${}()|[\]\\]/g, '\\$&') // escape 特殊字元
-    .replace(/\\\*/g, '.*');                  // * → .*
+  s = s.replace(/^[a-z][a-z0-9+.-]*:\/\//, '');
+  s = s.split('#')[0];
 
-  return new RegExp('^' + escaped + '$', 'i');
+  let wildcardSubdomains = false;
+  if (s.startsWith('*.')) {
+    wildcardSubdomains = true;
+    s = s.slice(2);
+  }
+
+  const restIndex = s.search(/[/?]/);
+  let host = restIndex === -1 ? s : s.slice(0, restIndex);
+  let rest = restIndex === -1 ? '' : s.slice(restIndex);
+
+  host = host.replace(/:\d+$/, '').replace(/^www\./, '').replace(/\.$/, '');
+  if (!host || host.includes('*')) return null;
+
+  try {
+    host = new URL('http://' + host).hostname;
+  } catch {
+    return null;
+  }
+  if (!/^[a-z0-9-]+(\.[a-z0-9-]+)*$/.test(host)) return null;
+
+  rest = rest.replace(/\/\*$/, '/');
+  if (rest === '/') rest = '';
+  if (rest.startsWith('?')) rest = '/' + rest;
+  if (/\s/.test(rest)) return null;
+
+  return (wildcardSubdomains ? '*.' : '') + host + rest;
+}
+
+function escapeRegex(text) {
+  return text.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**
- * 判斷 URL 是否符合 pattern
+ * 將 pattern 轉為 regex 字串（同時相容 JS RegExp 與 DNR 使用的 RE2）。
+ * regex 會比對整個網址，讓 DNR 的 regexSubstitution \0 能帶出完整原始網址。
+ * @param {string} pattern
+ * @returns {string|null}
+ */
+export function patternToRegexSource(pattern) {
+  const normalized = normalizePattern(pattern);
+  if (!normalized) return null;
+
+  const wildcardSubdomains = normalized.startsWith('*.');
+  const body = wildcardSubdomains ? normalized.slice(2) : normalized;
+  const restIndex = body.indexOf('/');
+  const host = restIndex === -1 ? body : body.slice(0, restIndex);
+  const path = restIndex === -1 ? '' : body.slice(restIndex);
+
+  const hostRe = (wildcardSubdomains ? '(?:[^/?#@]+\\.)?' : '(?:www\\.)?') + escapeRegex(host);
+  const pathRe = path
+    ? path.split('*').map(escapeRegex).join('.*') + '.*'
+    : '(?:[/?#].*)?';
+
+  return `^https?://${hostRe}(?::\\d+)?${pathRe}$`;
+}
+
+/**
+ * 將 pattern 轉換為正則表達式；無效 pattern 回傳 null
+ * @param {string} pattern
+ * @returns {RegExp|null}
+ */
+export function patternToRegex(pattern) {
+  const source = patternToRegexSource(pattern);
+  return source ? new RegExp(source, 'i') : null;
+}
+
+/**
+ * 判斷 URL 是否符合 pattern（與 DNR 規則使用同一個 regex）
  * @param {string} url
  * @param {string} pattern
  * @returns {boolean}
  */
 export function matchesPattern(url, pattern) {
-  try {
-    const urlObj = new URL(url);
-    const hostname = urlObj.hostname.replace(/^www\./, '');
-    const fullPath = hostname + urlObj.pathname;
-
-    // 純域名模式（無路徑萬用字元）— 精確匹配特定網域 (包含 www)
-    if (!pattern.includes('/') && !pattern.startsWith('*')) {
-      const domain = pattern.replace(/^www\./, '');
-      return hostname === domain || hostname === 'www.' + domain;
-    }
-
-    // 萬用字元前綴 *.example.com — 匹配該網域的所有子域
-    if (pattern.startsWith('*.')) {
-      const domain = pattern.slice(2).replace(/^www\./, '');
-      return hostname === domain || hostname.endsWith('.' + domain);
-    }
-
-    // 一般 pattern 匹配（含路徑）
-    const regex = patternToRegex(pattern);
-    return regex.test(fullPath) || regex.test(hostname);
-  } catch {
-    return false;
-  }
+  const regex = patternToRegex(pattern);
+  return !!regex && typeof url === 'string' && regex.test(url);
 }
 
 /**
- * 取得今天的 ISO 日期字串（YYYY-MM-DD）
+ * 取得本地日期字串（YYYY-MM-DD）
+ * @param {Date} [date]
+ * @returns {string}
+ */
+export function localDateStr(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * 取得今天的本地日期字串（YYYY-MM-DD）
  * @returns {string}
  */
 export function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateStr();
+}
+
+/**
+ * 將輸入轉為範圍內的整數，無法解析時回傳 fallback
+ * @param {*} value
+ * @param {number} min
+ * @param {number} max
+ * @param {number} fallback
+ * @returns {number}
+ */
+export function clampInt(value, min, max, fallback) {
+  const n = Number.parseInt(value, 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
 }
 
 /**
@@ -108,7 +179,7 @@ export function normalizeSchedule(schedule = {}) {
 }
 
 /**
- * 判斷本地時間是否在當日排程內；起點包含、終點不包含。
+ * 判斷本地時間是否在當日排程內；起點包含、終點不包含（23:59 視為當日結束，包含最後一分鐘）。
  * 同時支援 daySchedules 與舊版 days / timeSlots / startTime / endTime。
  * @param {object} schedule
  * @param {Date} [now]
@@ -127,8 +198,73 @@ export function isInSchedule(schedule, now = new Date()) {
     if (!validTime.test(slot.startTime) || !validTime.test(slot.endTime)) return false;
     const [startH, startM] = slot.startTime.split(':').map(Number);
     const [endH, endM] = slot.endTime.split(':').map(Number);
-    return nowMinutes >= startH * 60 + startM && nowMinutes < endH * 60 + endM;
+    const end = endH * 60 + endM;
+    return nowMinutes >= startH * 60 + startM && nowMinutes < (end === 23 * 60 + 59 ? 24 * 60 : end);
   });
+}
+
+/**
+ * 取得目前所在排程時段的結束時間（HH:MM）；不在任何時段內時回傳 null。
+ * 若有多個時段同時涵蓋現在，回傳最晚結束的那個。
+ * @param {object} schedule
+ * @param {Date} [now]
+ * @returns {string|null}
+ */
+export function currentSlotEnd(schedule, now = new Date()) {
+  if (!isInSchedule(schedule, now)) return null;
+  const daily = normalizeSchedule(schedule).daySchedules[now.getDay()];
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const toMinutes = t => {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  };
+  const ends = daily.timeSlots
+    .filter(slot => isInSchedule({ enabled: true, daySchedules: { [now.getDay()]: { enabled: true, timeSlots: [slot] } } }, now))
+    .map(slot => slot.endTime)
+    .sort((a, b) => toMinutes(b) - toMinutes(a));
+  return ends.length && toMinutes(ends[0]) > nowMinutes ? ends[0] : null;
+}
+
+/**
+ * 計算目前的封鎖狀態。
+ * - 停用、暫時解除中、專注休息階段 → 不封鎖
+ * - 專注階段 → 封鎖清單全部生效（忽略排程）
+ * - 其他時間 → 依各網站排程
+ * @param {object} data storage 內容
+ * @param {number} [now]
+ * @returns {{ active: boolean, reason?: string, mode?: 'blocklist'|'whitelist', patterns?: string[] }}
+ */
+export function getBlockingState(data = {}, now = Date.now()) {
+  const { enabled, mode, blocklist = [], whitelist = [], focusMode, snoozeUntil } = data;
+  if (!enabled) return { active: false, reason: 'disabled' };
+  if (snoozeUntil && now < snoozeUntil) return { active: false, reason: 'snooze' };
+  if (focusMode?.isRunning && focusMode.phase === 'break') return { active: false, reason: 'break' };
+
+  const validPatterns = entries => entries
+    .map(e => normalizePattern(e?.pattern))
+    .filter(Boolean);
+
+  if (mode === 'whitelist') {
+    return { active: true, mode: 'whitelist', patterns: validPatterns(whitelist) };
+  }
+
+  const focusing = !!(focusMode?.isRunning && focusMode.phase === 'focus');
+  const date = new Date(now);
+  const activeEntries = blocklist.filter(e =>
+    focusing || !e?.schedule?.enabled || isInSchedule(e.schedule, date));
+  return { active: true, mode: 'blocklist', patterns: validPatterns(activeEntries) };
+}
+
+/**
+ * 依封鎖狀態判斷網址是否應封鎖（只處理 http / https）
+ * @param {ReturnType<typeof getBlockingState>} state
+ * @param {string} url
+ * @returns {boolean}
+ */
+export function shouldBlockUrl(state, url) {
+  if (!state?.active || typeof url !== 'string' || !/^https?:\/\//i.test(url)) return false;
+  const matched = state.patterns.some(p => matchesPattern(url, p));
+  return state.mode === 'whitelist' ? !matched : matched;
 }
 
 /**
@@ -172,11 +308,11 @@ export const DEFAULT_STORAGE = {
     type: 'cooldown',
     cooldownSeconds: 30,
     timedMinutes: 5,
-    password: false,
   },
   passwordHash: null,
   passwordHint: '',
   motivationalQuotes: true,
+  showFloatingTimer: true,
   stats: {
     daily: {}
   }
