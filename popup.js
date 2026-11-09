@@ -19,30 +19,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function renderAll() {
   const data = await chrome.storage.local.get([
-    'enabled', 'mode', 'blocklist', 'focusMode', 'stats'
+    'focusMode', 'stats'
   ]);
 
-  renderToggle(data.enabled !== false);
   renderFocusMode(data.focusMode);
   await renderBlockThisButton();
   renderStats(data.stats);
-}
-
-// ─────────────────────────────────────────────
-// 啟用/停用封鎖
-// ─────────────────────────────────────────────
-function renderToggle(enabled) {
-  const toggle = document.getElementById('toggle-enabled');
-  const stateText = document.getElementById('toggle-state-text');
-
-  toggle.checked = enabled;
-  stateText.textContent = enabled ? '啟用中' : '已停用';
-  stateText.style.color = enabled ? '#6366f1' : '#64748b';
-
-  toggle.onchange = async () => {
-    await chrome.storage.local.set({ enabled: toggle.checked });
-    await chrome.runtime.sendMessage({ type: 'REBUILD_RULES' });
-  };
 }
 
 // ─────────────────────────────────────────────
