@@ -72,35 +72,62 @@ export function todayStr() {
 }
 
 /**
- * 判斷目前時間是否在排程封鎖時段內
- * @param {{ enabled: boolean, days: number[], startTime: string, endTime: string }} schedule
- * @returns {boolean}
+ * 統一每週排程格式，並將舊版共用時段複製到各星期；不修改來源資料。
+ * daySchedules 的 key 為 0（日）至 6（六），各日分別儲存啟用狀態與時段。
+ * @param {object} [schedule]
+ * @returns {{ enabled: boolean, daySchedules: Object<string, { enabled: boolean, timeSlots: Array<{ startTime: string, endTime: string }> }> }}
  */
-export function isInSchedule(schedule) {
-  if (!schedule || !schedule.enabled) return false;
-
-  const now = new Date();
-  const day = now.getDay(); // 0=Sun
-
-  if (!schedule.days.includes(day)) return false;
-
-  // 兼容舊資料結構：如果只有 startTime 和 endTime，則轉為一組 timeSlots
-  const timeSlots = schedule.timeSlots || [];
-  if (timeSlots.length === 0 && schedule.startTime && schedule.endTime) {
-    timeSlots.push({ startTime: schedule.startTime, endTime: schedule.endTime });
+export function normalizeSchedule(schedule = {}) {
+  const legacyDays = Array.isArray(schedule.days) ? schedule.days : [1, 2, 3, 4, 5];
+  let legacySlots = schedule.timeSlots;
+  if (!Array.isArray(legacySlots) || legacySlots.length === 0) {
+    if (schedule.startTime && schedule.endTime) {
+      legacySlots = [{ startTime: schedule.startTime, endTime: schedule.endTime }];
+    } else if (!Array.isArray(legacySlots)) {
+      legacySlots = [{ startTime: '09:00', endTime: '18:00' }];
+    }
   }
 
-  if (timeSlots.length === 0) return false;
+  const daySchedules = {};
+  for (let day = 0; day < 7; day++) {
+    const daily = schedule.daySchedules?.[day];
+    const slots = schedule.daySchedules
+      ? (Array.isArray(daily?.timeSlots) ? daily.timeSlots : [])
+      : legacySlots;
+
+    daySchedules[day] = {
+      enabled: schedule.daySchedules ? daily?.enabled === true : legacyDays.includes(day),
+      timeSlots: slots.map(slot => ({
+        startTime: typeof slot?.startTime === 'string' ? slot.startTime : '',
+        endTime: typeof slot?.endTime === 'string' ? slot.endTime : '',
+      })),
+    };
+  }
+
+  return { enabled: schedule.enabled === true, daySchedules };
+}
+
+/**
+ * 判斷本地時間是否在當日排程內；起點包含、終點不包含。
+ * 同時支援 daySchedules 與舊版 days / timeSlots / startTime / endTime。
+ * @param {object} schedule
+ * @param {Date} [now]
+ * @returns {boolean}
+ */
+export function isInSchedule(schedule, now = new Date()) {
+  if (!schedule?.enabled) return false;
+
+  const daily = normalizeSchedule(schedule).daySchedules[now.getDay()];
+  if (!daily?.enabled) return false;
 
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const validTime = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 
-  // 只要其中一個時段符合，就回傳 true
-  return timeSlots.some(slot => {
+  return daily.timeSlots.some(slot => {
+    if (!validTime.test(slot.startTime) || !validTime.test(slot.endTime)) return false;
     const [startH, startM] = slot.startTime.split(':').map(Number);
     const [endH, endM] = slot.endTime.split(':').map(Number);
-    const startMinutes = startH * 60 + startM;
-    const endMinutes = endH * 60 + endM;
-    return nowMinutes >= startMinutes && nowMinutes < endMinutes;
+    return nowMinutes >= startH * 60 + startM && nowMinutes < endH * 60 + endM;
   });
 }
 

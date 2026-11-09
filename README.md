@@ -11,7 +11,7 @@
 
 - **網站封鎖 (Block List)**：手動輸入網域或完整 URL，支援 `*.domain.com` 萬用字元。
 - **白名單模式 (Whitelist)**：可切換為僅允許特定網站。
-- **排程管理 (Schedule)**：設定各網站的封鎖時段（星期、起始時間）。
+- **排程管理 (Schedule)**：各網站可依週一至週日分別設定多個封鎖時段，每週重複，依本地時間生效。開啟排程後，未勾選的星期不封鎖；關閉排程則全天封鎖。舊版共用時段會自動帶入各星期。
 - **專注計時器 (Pomodoro)**：內建 25/5 分鐘計時，專注期間自動封鎖，並在頁面右下角顯示浮動計時器。
 - **暫時解除封鎖 (Break/Snooze)**：支援「冷靜計時器（等待 N 秒）」、「密碼保護」或「固定時長解除」。
 - **統計報表 (Stats)**：每日封鎖次數與專注 session 圖表（支援過去 7/30 天）。
@@ -46,7 +46,7 @@ site-blocker/
 
 - **Website Blocking (Block List)**: Manually enter domains or full URLs, supports `*.domain.com` wildcards.
 - **Whitelist Mode**: Switch to "Allow-Only" mode where only listed sites are accessible.
-- **Schedule Management**: Set blocking periods (days of the week, start/end times) for each entry.
+- **Schedule Management**: Set multiple blocking periods independently for each weekday and website, recurring weekly in local time. Unselected days are not blocked while scheduling is on; turning scheduling off blocks all day. Existing shared time slots are preserved for each selected weekday.
 - **Focus Timer (Pomodoro)**: Built-in 25/5 min timer. Automatically blocks sites during focus sessions and shows a floating timer in the corner.
 - **Temporary Unblock (Break/Snooze)**: Supports "Cool-down Timer (wait N seconds)", "Password Protection", or "Snooze for X minutes".
 - **Statistics & Reports**: Daily charts for blocked attempts and completed focus sessions (last 7/30 days).
@@ -75,3 +75,11 @@ site-blocker/
 ---
 
 *Focus is the key to success.*
+
+## 開發驗證 / Development checks
+
+使用 Node.js 22 以上版本執行排程與背景封鎖規則測試，無需安裝套件：
+
+```sh
+node --test tests/*.test.mjs
+```

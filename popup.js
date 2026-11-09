@@ -1,5 +1,7 @@
 // popup.js
 
+import { normalizeSchedule } from './utils.js';
+
 let focusEndTime = null;
 let focusUpdateInterval = null;
 
@@ -145,7 +147,7 @@ async function renderBlockThisButton() {
         id: crypto.randomUUID(),
         pattern: hostname,
         category: 'manual',
-        schedule: { enabled: false, days: [0,1,2,3,4,5,6], timeSlots: [{ startTime: '00:00', endTime: '23:59' }] }
+        schedule: normalizeSchedule({ enabled: false, days: [0,1,2,3,4,5,6], timeSlots: [{ startTime: '00:00', endTime: '23:59' }] })
       };
       const updated = [...blocklist, newEntry];
       await chrome.storage.local.set({ blocklist: updated });

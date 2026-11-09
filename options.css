@@ -233,30 +233,52 @@ body {
   margin-bottom: 10px;
 }
 
-.schedule-item-pattern { font-weight: 600; flex: 1; }
+.schedule-item-pattern { font-weight: 600; flex: 1; overflow-wrap: anywhere; }
+.schedule-toggle { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.schedule-status-text { font-size: 12px; color: var(--text-soft); }
 
-.schedule-days { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.schedule-body, .schedule-day-times { border: 0; min-width: 0; }
+.schedule-body:disabled { display: none; }
+.schedule-legend { font-size: 12px; color: var(--text-soft); margin-bottom: 12px; }
 
-.day-label {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
-  background: rgba(255,255,255,0.05);
-  color: var(--text-soft);
-  transition: all 0.2s;
+.schedule-day {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
 }
-.day-label:has(input:checked) { background: rgba(99,102,241,0.2); color: #a5b4fc; }
-.day-label input { display: none; }
+
+.schedule-day-label { display: flex; align-items: center; gap: 6px; padding-top: 8px; cursor: pointer; }
+.schedule-day-label input { accent-color: var(--accent); }
+.schedule-day:has(.day-check:not(:checked)) .schedule-day-times { display: none; }
+.schedule-day:has(.day-check:not(:checked))::after {
+  content: '不封鎖';
+  padding-top: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
 
 .schedule-time-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 44px minmax(120px, 1fr) auto minmax(120px, 1fr) 28px;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   font-size: 13px;
+  margin-bottom: 8px;
+}
+.schedule-time-row .text-input { width: 100%; min-width: 0; padding: 8px; }
+.schedule-slot-label { font-size: 12px; color: var(--text-soft); }
+.schedule-item-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 12px; }
+.schedule-feedback { font-size: 12px; color: var(--success); }
+.schedule-feedback.has-error { color: #f87171; }
+.toggle-small input:focus-visible + .slider { outline: 2px solid var(--text); outline-offset: 3px; }
+
+@media (max-width: 860px) {
+  .schedule-day { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .schedule-time-row { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) 28px; }
+  .schedule-slot-label { grid-column: 1 / -1; }
 }
 
 /* Forms */

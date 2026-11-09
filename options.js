@@ -1,6 +1,6 @@
 // options.js
 
-import { sha256, QUICK_BLOCK_CATEGORIES, generateId } from './utils.js';
+import { sha256, QUICK_BLOCK_CATEGORIES, generateId, normalizeSchedule } from './utils.js';
 import { getStatsForDays, clearStats } from './stats.js';
 
 // ─────────────────────────────────────────────
@@ -75,7 +75,7 @@ async function renderBlocklist() {
       id: generateId(),
       pattern,
       category: 'manual',
-      schedule: { enabled: false, days: [1,2,3,4,5], timeSlots: [{ startTime: '09:00', endTime: '18:00' }] }
+      schedule: normalizeSchedule()
     };
 
     currentList.push(newEntry);
@@ -163,7 +163,7 @@ function setupCategoryButtons() {
             id: generateId(),
             pattern: domain,
             category,
-            schedule: { enabled: false, days: [1,2,3,4,5], timeSlots: [{ startTime: '09:00', endTime: '18:00' }] }
+            schedule: normalizeSchedule()
           });
           added++;
         }
@@ -229,6 +229,8 @@ function setupExportImport() {
 // Schedule Tab
 // ─────────────────────────────────────────────
 const DAY_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
+const WEEK_DAYS = [1, 2, 3, 4, 5, 6, 0];
+let scheduleSaveQueue = Promise.resolve();
 
 async function renderSchedule() {
   const data = await chrome.storage.local.get('blocklist');
@@ -242,156 +244,179 @@ async function renderSchedule() {
 
   container.innerHTML = '';
 
-  blocklist.forEach((entry, index) => {
-    let schedule = entry.schedule || { enabled: false, days: [1,2,3,4,5] };
-    if (!schedule.timeSlots) {
-      if (schedule.startTime && schedule.endTime) {
-        schedule.timeSlots = [{ startTime: schedule.startTime, endTime: schedule.endTime }];
-      } else {
-        schedule.timeSlots = [{ startTime: '09:00', endTime: '18:00' }];
-      }
-    }
-
+  blocklist.forEach(entry => {
+    const schedule = normalizeSchedule(entry.schedule || undefined);
     const div = document.createElement('div');
     div.className = 'schedule-item';
-
-    const timeSlotsHtml = schedule.timeSlots.map((slot, sIdx) => `
-      <div class="schedule-time-row" style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-        <span style="font-size:12px;color:var(--text-muted);">時段 ${sIdx + 1}：</span>
-        <input type="time" class="text-input w140 schedule-start" data-index="${index}" data-slot="${sIdx}" value="${slot.startTime || '09:00'}" />
-        <span>—</span>
-        <input type="time" class="text-input w140 schedule-end" data-index="${index}" data-slot="${sIdx}" value="${slot.endTime || '18:00'}" />
-        ${schedule.timeSlots.length > 1 ? `<button class="btn-icon delete-slot" data-index="${index}" data-slot="${sIdx}" title="刪除時段">🗑</button>` : ''}
-      </div>
-    `).join('');
+    div.dataset.id = entry.id;
 
     div.innerHTML = `
       <div class="schedule-item-header">
-        <span class="schedule-item-pattern">${entry.pattern}</span>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span class="schedule-status-text" style="font-size:12px;color:var(--text-muted);">${schedule.enabled ? '排程啟用' : '排程停用'}</span>
+        <span class="schedule-item-pattern"></span>
+        <div class="schedule-toggle">
+          <span class="schedule-status-text"></span>
           <label class="toggle-small">
-            <input type="checkbox" class="schedule-enabled" data-index="${index}" ${schedule.enabled ? 'checked' : ''} />
+            <input type="checkbox" class="schedule-enabled" aria-label="啟用每週排程" ${schedule.enabled ? 'checked' : ''} />
             <span class="slider"></span>
           </label>
         </div>
       </div>
-      <div class="schedule-body" style="${schedule.enabled ? '' : 'opacity:0.4;pointer-events:none;'}">
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">封鎖星期</div>
-        <div class="schedule-days" style="margin-bottom: 12px;">
-          ${DAY_LABELS.map((d, i) => `
-            <label class="day-label">
-              <input type="checkbox" class="day-check" data-index="${index}" data-day="${i}" ${(schedule.days || []).includes(i) ? 'checked' : ''} />
-              ${d}
+      <fieldset class="schedule-body">
+        <legend class="schedule-legend">每週封鎖時段</legend>
+        ${WEEK_DAYS.map(day => `
+          <div class="schedule-day" data-day="${day}">
+            <label class="schedule-day-label">
+              <input type="checkbox" class="day-check" ${schedule.daySchedules[day].enabled ? 'checked' : ''} />
+              週${DAY_LABELS[day]}
             </label>
-          `).join('')}
-        </div>
-        <div class="schedule-times">
-          ${timeSlotsHtml}
-          <div style="margin-top: 8px; display: flex; gap: 8px;">
-            <button class="btn btn-sm btn-secondary add-slot" data-index="${index}">＋ 新增時段</button>
-            <button class="btn btn-sm btn-secondary apply-all-slot" data-index="${index}" style="border-color: var(--accent); color: var(--accent);">套用至所有網站</button>
+            <fieldset class="schedule-day-times" aria-label="週${DAY_LABELS[day]}的封鎖時段">
+              <div class="schedule-slots"></div>
+              <button type="button" class="btn btn-sm btn-secondary add-slot">＋ 新增時段</button>
+            </fieldset>
           </div>
-        </div>
+        `).join('')}
+      </fieldset>
+      <div class="schedule-item-actions">
+        <button type="button" class="btn btn-sm btn-secondary apply-all-slot">套用至所有網站</button>
+        <span class="schedule-feedback" role="status" aria-live="polite"></span>
       </div>
     `;
 
+    div.querySelector('.schedule-item-pattern').textContent = entry.pattern;
+    div.querySelector('.schedule-enabled').setAttribute('aria-label', `啟用 ${entry.pattern} 的每週排程`);
+    div.querySelectorAll('.schedule-day').forEach(dayEl => {
+      const daily = schedule.daySchedules[dayEl.dataset.day];
+      daily.timeSlots.forEach(slot => appendScheduleSlot(dayEl, slot));
+    });
+    updateScheduleState(div);
     container.appendChild(div);
   });
 
-  // Event listeners for schedule changes
-  container.querySelectorAll('.schedule-enabled').forEach(el => {
-    el.addEventListener('change', () => saveScheduleChange(container, blocklist));
-  });
-  container.querySelectorAll('.day-check').forEach(el => {
-    el.addEventListener('change', () => saveScheduleChange(container, blocklist));
-  });
-  container.querySelectorAll('.schedule-start, .schedule-end').forEach(el => {
-    el.addEventListener('change', () => saveScheduleChange(container, blocklist));
-  });
-  container.querySelectorAll('.add-slot').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const idx = parseInt(btn.dataset.index);
-      await saveScheduleChange(container, blocklist);
-      const data = await chrome.storage.local.get('blocklist');
-      const latestList = data.blocklist || [];
-      const schedule = latestList[idx].schedule;
-      schedule.timeSlots.push({ startTime: '09:00', endTime: '18:00' });
-      await chrome.storage.local.set({ blocklist: latestList });
-      await chrome.runtime.sendMessage({ type: 'REBUILD_RULES' });
-      await renderSchedule();
-    });
-  });
-  container.querySelectorAll('.delete-slot').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const idx = parseInt(btn.dataset.index);
-      const slotIdx = parseInt(btn.dataset.slot);
-      await saveScheduleChange(container, blocklist);
-      const data = await chrome.storage.local.get('blocklist');
-      const latestList = data.blocklist || [];
-      latestList[idx].schedule.timeSlots.splice(slotIdx, 1);
-      await chrome.storage.local.set({ blocklist: latestList });
-      await chrome.runtime.sendMessage({ type: 'REBUILD_RULES' });
-      await renderSchedule();
-    });
-  });
-  container.querySelectorAll('.apply-all-slot').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      if (!confirm('確定要將此網站的排程套用到所有封鎖清單內的網站嗎？\\n（這將覆蓋所有其他網站的「排程設定」與「時段」）')) return;
-      const idx = parseInt(btn.dataset.index);
-      await saveScheduleChange(container, blocklist);
-      const data = await chrome.storage.local.get('blocklist');
-      const latestList = data.blocklist || [];
-      const sourceSchedule = JSON.parse(JSON.stringify(latestList[idx].schedule));
-      latestList.forEach((item, index) => {
-        if (index !== idx) {
-          item.schedule = JSON.parse(JSON.stringify(sourceSchedule));
-        }
-      });
-      await chrome.storage.local.set({ blocklist: latestList });
-      await chrome.runtime.sendMessage({ type: 'REBUILD_RULES' });
-      await renderSchedule();
-    });
+  container.onchange = async event => {
+    if (!event.target.matches('.schedule-enabled, .day-check, .schedule-start, .schedule-end')) return;
+    const item = event.target.closest('.schedule-item');
+    const dayEl = event.target.closest('.schedule-day');
+    if (event.target.matches('.day-check') && event.target.checked && !dayEl.querySelector('.schedule-time-row')) {
+      appendScheduleSlot(dayEl);
+    }
+    updateScheduleState(item);
+    await saveScheduleChange(item);
+  };
+
+  container.onclick = async event => {
+    const btn = event.target.closest('button');
+    if (!btn) return;
+    const item = btn.closest('.schedule-item');
+    if (!item) return;
+
+    if (btn.matches('.apply-all-slot')) {
+      if (!confirm('確定要將此網站的每週排程套用到所有網站嗎？\n這將覆蓋其他網站各星期的啟用狀態與時段。')) return;
+      if (await saveScheduleChange(item, true)) await renderSchedule();
+      return;
+    }
+
+    const dayEl = btn.closest('.schedule-day');
+    if (!dayEl) return;
+    if (btn.matches('.add-slot')) {
+      appendScheduleSlot(dayEl);
+    } else if (btn.matches('.delete-slot')) {
+      btn.closest('.schedule-time-row').remove();
+      if (!dayEl.querySelector('.schedule-time-row')) dayEl.querySelector('.day-check').checked = false;
+      renumberScheduleSlots(dayEl);
+    } else {
+      return;
+    }
+    updateScheduleState(item);
+    await saveScheduleChange(item);
+  };
+}
+
+function appendScheduleSlot(dayEl, slot = { startTime: '09:00', endTime: '18:00' }) {
+  const row = document.createElement('div');
+  row.className = 'schedule-time-row';
+  row.innerHTML = `
+    <span class="schedule-slot-label"></span>
+    <input type="time" class="text-input schedule-start" required />
+    <span>—</span>
+    <input type="time" class="text-input schedule-end" required />
+    <button type="button" class="btn-icon delete-slot" title="刪除時段">🗑</button>
+  `;
+  row.querySelector('.schedule-start').value = slot.startTime;
+  row.querySelector('.schedule-end').value = slot.endTime;
+  dayEl.querySelector('.schedule-slots').appendChild(row);
+  renumberScheduleSlots(dayEl);
+}
+
+function renumberScheduleSlots(dayEl) {
+  dayEl.querySelectorAll('.schedule-time-row').forEach((row, index) => {
+    const label = `週${DAY_LABELS[dayEl.dataset.day]}時段 ${index + 1}`;
+    row.querySelector('.schedule-slot-label').textContent = `時段 ${index + 1}`;
+    row.querySelector('.schedule-start').setAttribute('aria-label', `${label}開始時間`);
+    row.querySelector('.schedule-end').setAttribute('aria-label', `${label}結束時間`);
+    row.querySelector('.delete-slot').setAttribute('aria-label', `刪除${label}`);
   });
 }
 
-async function saveScheduleChange(container, blocklist) {
-  const updatedList = [...blocklist];
+function updateScheduleState(item) {
+  const enabled = item.querySelector('.schedule-enabled').checked;
+  item.querySelector('.schedule-body').disabled = !enabled;
+  item.querySelector('.schedule-status-text').textContent = enabled ? '每週排程' : '全天封鎖';
+  item.querySelectorAll('.schedule-day').forEach(dayEl => {
+    dayEl.querySelector('.schedule-day-times').disabled = !dayEl.querySelector('.day-check').checked;
+  });
+}
 
-  container.querySelectorAll('.schedule-item').forEach((item, index) => {
-    const enabledEl = item.querySelector('.schedule-enabled');
-    if (!enabledEl) return;
-
-    const enabled = enabledEl.checked;
-    const days = [];
-    item.querySelectorAll('.day-check').forEach(dc => {
-      if (dc.checked) days.push(parseInt(dc.dataset.day));
-    });
-    
+async function saveScheduleChange(item, applyToAll = false) {
+  const schedule = { enabled: item.querySelector('.schedule-enabled').checked, daySchedules: {} };
+  let invalidInput = null;
+  item.querySelectorAll('.schedule-day').forEach(dayEl => {
+    const enabled = dayEl.querySelector('.day-check').checked;
     const timeSlots = [];
-    item.querySelectorAll('.schedule-time-row').forEach(row => {
-      const startTime = row.querySelector('.schedule-start')?.value || '09:00';
-      const endTime = row.querySelector('.schedule-end')?.value || '18:00';
-      timeSlots.push({ startTime, endTime });
+    dayEl.querySelectorAll('.schedule-time-row').forEach(row => {
+      const start = row.querySelector('.schedule-start');
+      const end = row.querySelector('.schedule-end');
+      end.setCustomValidity(start.value && end.value && end.value <= start.value
+        ? '結束時間必須晚於開始時間；跨午夜請分成兩天設定。' : '');
+      if (schedule.enabled && enabled) {
+        if (!start.checkValidity()) invalidInput ||= start;
+        if (!end.checkValidity()) invalidInput ||= end;
+      }
+      timeSlots.push({ startTime: start.value, endTime: end.value });
     });
-
-    updatedList[index] = {
-      ...updatedList[index],
-      schedule: { enabled, days, timeSlots }
-    };
-
-    // Toggle body opacity
-    const body = item.querySelector('.schedule-body');
-    if (body) {
-      body.style.opacity = enabled ? '1' : '0.4';
-      body.style.pointerEvents = enabled ? '' : 'none';
-    }
-    const label = item.querySelector('.schedule-status-text');
-    if (label) label.textContent = enabled ? '排程啟用' : '排程停用';
+    schedule.daySchedules[dayEl.dataset.day] = { enabled, timeSlots };
   });
 
-  await chrome.storage.local.set({ blocklist: updatedList });
-  await chrome.runtime.sendMessage({ type: 'REBUILD_RULES' });
+  const feedback = item.querySelector('.schedule-feedback');
+  feedback.classList.toggle('has-error', !!invalidInput);
+  if (invalidInput) {
+    feedback.textContent = '尚未儲存，請填寫有效的起迄時間。';
+    invalidInput.reportValidity();
+    return false;
+  }
+
+  feedback.textContent = '儲存中…';
+  // 逐次讀取最新清單並依 ID 更新，避免快速編輯不同網站時互相覆蓋。
+  const save = scheduleSaveQueue.then(async () => {
+    const data = await chrome.storage.local.get('blocklist');
+    const updatedList = (data.blocklist || []).map(entry =>
+      applyToAll || entry.id === item.dataset.id
+        ? { ...entry, schedule: normalizeSchedule(schedule) }
+        : entry
+    );
+    await chrome.storage.local.set({ blocklist: updatedList });
+    await chrome.runtime.sendMessage({ type: 'REBUILD_RULES' });
+  });
+  scheduleSaveQueue = save.catch(() => {});
+
+  try {
+    await save;
+    feedback.textContent = '✓ 已儲存';
+    return true;
+  } catch (err) {
+    feedback.classList.add('has-error');
+    feedback.textContent = `儲存失敗：${err.message}`;
+    return false;
+  }
 }
 
 // ─────────────────────────────────────────────
