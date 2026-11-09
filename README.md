@@ -5,34 +5,37 @@
 ---
 
 <a name="繁體中文"></a>
-## 🚀 核心功能 (Traditional Chinese)
+## 🍅 核心功能
 
-**SiteFocus** 是一款 Chrome/Edge 瀏覽器插件 (Manifest V3)，旨在幫助使用者封鎖分心網站、建立專注習慣，並提供彈性的排程與 Pomodoro 統計功能。
+**SiteFocus** 是一款 Chrome/Edge 瀏覽器插件 (Manifest V3)，用番茄鐘幫你封鎖分心網站、建立專注習慣。
 
-- **網站封鎖 (Block List)**：手動輸入網域或完整 URL，支援 `*.domain.com` 萬用字元。
-- **白名單模式 (Whitelist)**：可切換為僅允許特定網站。
-- **排程管理 (Schedule)**：各網站可依週一至週日分別設定多個封鎖時段，每週重複，依本地時間生效。開啟排程後，未勾選的星期不封鎖；關閉排程則全天封鎖。舊版共用時段會自動帶入各星期。
-- **專注計時器 (Pomodoro)**：內建 25/5 分鐘計時，專注期間自動封鎖，並在頁面右下角顯示浮動計時器。
-- **暫時解除封鎖 (Break/Snooze)**：支援「冷靜計時器（等待 N 秒）」、「密碼保護」或「固定時長解除」。
-- **統計報表 (Stats)**：每日封鎖次數與專注 session 圖表（支援過去 7/30 天）。
-- **密碼保護 (Password Lock)**：設定頁可加鎖，防止輕易修改封鎖名單。
-- **資料隱私**：所有資料儲存於 `chrome.storage.local`，不上傳至外部伺服器。
+- **網站封鎖**：輸入網域或網址即可封鎖。`youtube.com` 封鎖該網域（含 www），`*.reddit.com` 連同所有子網域，`youtube.com/shorts*` 只封鎖特定路徑。單頁應用（SPA）站內換頁也會被攔截。
+- **白名單模式**：只允許清單內的網站，其他一律封鎖。
+- **排程**：各網站可依週一至週日分別設定多個封鎖時段，每週重複，依本地時間生效。關閉排程則全天封鎖。
+- **番茄鐘**：預設 25/5 分鐘。專注期間清單內網站一律封鎖（忽略排程），休息時暫停封鎖；網頁右下角可顯示倒數（可關閉）。
+- **暫時解除**：冷靜計時（等待 N 秒）、輸入密碼或直接解除，時間到自動恢復封鎖，並導回原本要去的網址。
+- **封鎖頁**：顯示被擋下的網站、專注剩餘時間或排程結束時間。
+- **統計報表**：過去 7 / 30 天的每日擋下次數、完成番茄數，以及最常被擋下的網站。
+- **密碼保護**：設定密碼後，開啟設定頁需先解鎖。
+- **資料隱私**：所有資料只存在 `chrome.storage.local`，不連線到任何外部伺服器（包含字型）。
 
 ## 📂 檔案結構
 ```text
 site-blocker/
-├── manifest.json      # 插件配置 (MV3)
-├── background.js      # Service Worker: DNR 規則與計時邏輯
-├── utils.js / stats.js # 工具函式與統計記錄
-├── content.js/css     # 注入頁面的浮動計時器
-├── blocked.html/js/css # 封鎖提示頁
-├── popup.html/js/css   # 工具列小視窗
-├── options.html/js/css # 詳細設定頁
-└── icons/             # 插件圖示
+├── manifest.json        # 插件配置 (MV3)
+├── background.js        # Service Worker：DNR 規則、alarms、分頁攔截
+├── utils.js / stats.js  # 共用邏輯（網址比對、排程、封鎖狀態）與統計
+├── theme.css            # 共用色彩與字型 token
+├── content.js/css       # 網頁右下角的浮動倒數
+├── blocked.html/js/css  # 封鎖頁
+├── popup.html/js/css    # 工具列視窗
+├── options.html/js/css  # 設定頁
+├── icons/               # 圖示（SVG 原始檔與 PNG）
+└── tests/               # Node.js 測試
 ```
 
 ## 🛠 安裝教學
-1. 下載或複製品資到本地資料夾。
+1. 下載或複製專案到本地資料夾。
 2. 開啟 Chrome 瀏覽器，前往 `chrome://extensions/`。
 3. 右上角開啟「**開發人員模式**」。
 4. 點擊「**載入未封裝項目**」，選擇 `site-blocker` 資料夾。
@@ -40,35 +43,23 @@ site-blocker/
 ---
 
 <a name="english"></a>
-## 🚀 Features (English)
+## 🍅 Features
 
-**SiteFocus** is a Chrome/Edge browser extension (Manifest V3) designed to help users block distracting websites, build focus habits, and provide flexible scheduling with Pomodoro statistics.
+**SiteFocus** is a Chrome/Edge extension (Manifest V3) that pairs a Pomodoro timer with website blocking to help you build focus habits.
 
-- **Website Blocking (Block List)**: Manually enter domains or full URLs, supports `*.domain.com` wildcards.
-- **Whitelist Mode**: Switch to "Allow-Only" mode where only listed sites are accessible.
-- **Schedule Management**: Set multiple blocking periods independently for each weekday and website, recurring weekly in local time. Unselected days are not blocked while scheduling is on; turning scheduling off blocks all day. Existing shared time slots are preserved for each selected weekday.
-- **Focus Timer (Pomodoro)**: Built-in 25/5 min timer. Automatically blocks sites during focus sessions and shows a floating timer in the corner.
-- **Temporary Unblock (Break/Snooze)**: Supports "Cool-down Timer (wait N seconds)", "Password Protection", or "Snooze for X minutes".
-- **Statistics & Reports**: Daily charts for blocked attempts and completed focus sessions (last 7/30 days).
-- **Password Protection**: Lock the options page to prevent unauthorized changes to the block list.
-- **Privacy Focus**: All data is stored locally in `chrome.storage.local`, no data is sent to external servers.
-
-## 📂 File Structure
-```text
-site-blocker/
-├── manifest.json      # Extension Config (MV3)
-├── background.js      # Service Worker: DNR rules & timer logic
-├── utils.js / stats.js # Utils & Statistics recording
-├── content.js/css     # Injected floating timer widget
-├── blocked.html/js/css # Custom blocked landing page
-├── popup.html/js/css   # Toolbar popup UI
-├── options.html/js/css # Advanced settings page
-└── icons/             # Extension icons
-```
+- **Website blocking**: `youtube.com` blocks the domain (and www), `*.reddit.com` also blocks every subdomain, and `youtube.com/shorts*` blocks a specific path. In-app navigation on single-page apps is caught too.
+- **Whitelist mode**: only listed sites are allowed; everything else is blocked.
+- **Schedules**: multiple blocking periods per weekday and per site, recurring weekly in local time. Turning a schedule off blocks the site all day.
+- **Pomodoro timer**: 25/5 minutes by default. During focus every listed site is blocked regardless of its schedule; breaks pause blocking. An optional countdown appears in the page corner.
+- **Temporary unblock**: cool-down timer, password, or instant unblock. Blocking resumes automatically, and you are returned to the URL you originally opened.
+- **Block page**: shows the blocked site and how long the focus session or schedule has left.
+- **Statistics**: daily blocked attempts, completed Pomodoros, and most-blocked sites for the last 7 / 30 days.
+- **Password lock**: once a password is set, the settings page must be unlocked first.
+- **Privacy**: everything stays in `chrome.storage.local`; the extension never contacts external servers, not even for fonts.
 
 ## 🛠 Installation
-1. Download or clone this repository to your local machine.
-2. Open Chrome/Edge and navigate to `chrome://extensions/`.
+1. Download or clone this repository.
+2. Open `chrome://extensions/` in Chrome or Edge.
 3. Enable "**Developer mode**" in the top right corner.
 4. Click "**Load unpacked**" and select the `site-blocker` folder.
 
@@ -78,8 +69,10 @@ site-blocker/
 
 ## 開發驗證 / Development checks
 
-使用 Node.js 22 以上版本執行排程與背景封鎖規則測試，無需安裝套件：
+使用 Node.js 22 以上版本執行測試，無需安裝套件：
 
 ```sh
 node --test tests/*.test.mjs
 ```
+
+開發慣例請見 [AGENTS.md](AGENTS.md)。
