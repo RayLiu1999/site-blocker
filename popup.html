@@ -4,66 +4,52 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SiteFocus</title>
+    <link rel="stylesheet" href="theme.css" />
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
-    <div class="popup-wrap">
-      <!-- Header -->
+    <main class="popup">
       <header class="popup-header">
-        <div class="popup-logo">
-          <span class="logo-icon">🎯</span>
-          <span class="logo-text">SiteFocus</span>
+        <div class="brand">
+          <img src="icons/icon48.png" alt="" width="22" height="22" />
+          <span>SiteFocus</span>
         </div>
-        <button class="icon-btn" id="btn-settings" title="設定">⚙️</button>
+        <button class="icon-btn" id="btn-settings" type="button" title="開啟設定" aria-label="開啟設定">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M4 7h9M19 7h1M4 17h3M13 17h7" />
+            <circle cx="16" cy="7" r="2.5" />
+            <circle cx="10" cy="17" r="2.5" />
+          </svg>
+        </button>
       </header>
 
-      <!-- 專注模式 -->
-      <section class="popup-section focus-section">
-        <div class="focus-header">
-          <span class="section-label">專注模式</span>
-          <span
-            class="focus-timer-display"
-            id="focus-timer-display"
-            style="display: none"
-          ></span>
+      <section class="timer" id="timer" data-phase="idle" aria-live="polite">
+        <div class="dial">
+          <svg class="dial-svg" id="dial-svg" viewBox="0 0 220 232" aria-hidden="true"></svg>
+          <div class="dial-readout">
+            <span class="dial-time" id="dial-time">25:00</span>
+            <span class="dial-phase" id="dial-phase">準備專注</span>
+          </div>
         </div>
-        <div class="focus-controls">
-          <div
-            class="focus-phase-badge"
-            id="focus-phase-badge"
-            style="display: none"
-          ></div>
-          <button class="btn btn-focus" id="btn-focus-toggle">▶ 開始</button>
-          <span class="focus-duration-label" id="focus-duration-label"
-            >25 分鐘</span
-          >
-        </div>
+        <button class="btn-focus" id="btn-focus-toggle" type="button">開始專注</button>
+        <p class="timer-note" id="timer-note">專注 25 分鐘，休息 5 分鐘</p>
       </section>
 
-      <!-- 一鍵封鎖目前網站 -->
-      <section class="popup-section block-current-section">
-        <button class="btn btn-block-this" id="btn-block-this">
-          ＋ 封鎖目前網站
-        </button>
-        <span class="current-url-label" id="current-url-label"></span>
+      <p class="snooze-note" id="snooze-note" hidden></p>
+
+      <section class="current-site">
+        <div class="current-site-text">
+          <span class="current-site-label">目前網站</span>
+          <span class="current-site-host" id="current-url-label">—</span>
+        </div>
+        <button class="btn-block" id="btn-block-this" type="button" disabled>封鎖這個網站</button>
       </section>
 
-      <!-- 今日統計 -->
-      <section class="popup-section stats-section">
-        <div class="stat-item">
-          <span class="stat-icon">🚫</span>
-          <span class="stat-text"
-            >今日封鎖 <strong id="stat-blocked">0</strong> 次</span
-          >
-        </div>
-        <div class="stat-item">
-          <span class="stat-icon">✅</span>
-          <span class="stat-text"
-            >專注完成 <strong id="stat-sessions">0</strong> sessions</span
-          >
-        </div>
+      <section class="today" aria-label="今天的紀錄">
+        <p><strong id="stat-blocked">0</strong><span>次分心被擋下</span></p>
+        <p><strong id="stat-sessions">0</strong><span>輪專注完成</span></p>
       </section>
-    </div>
+    </main>
     <script type="module" src="popup.js"></script>
   </body>
 </html>
