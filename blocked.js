@@ -1,148 +1,149 @@
-// blocked.js
+// blocked.js — 封鎖提示頁
+
+import { sha256, randomQuote, matchesPattern, currentSlotEnd, clampInt } from './utils.js';
+
+const $ = id => document.getElementById(id);
 
 (async function () {
-  const params = new URLSearchParams(window.location.search);
-  const rawUrl = params.get('url') || '';
+  // 原始網址由 DNR regexSubstitution 帶在 hash；舊版規則則以 ?url= 帶 pattern
+  const originalUrl = readOriginalUrl();
+  const host = hostOf(originalUrl);
 
-  // 顯示被封鎖的域名
-  let displayDomain = rawUrl;
-  if (rawUrl === 'WHITELIST_BLOCK') {
-    displayDomain = '（白名單模式：此網站不在允許清單）';
-  } else {
-    try { displayDomain = decodeURIComponent(rawUrl); } catch { displayDomain = rawUrl; }
-  }
-  document.getElementById('blocked-domain').textContent = displayDomain;
+  const data = await chrome.storage.local.get([
+    'motivationalQuotes', 'breakSettings', 'passwordHash', 'passwordHint', 'focusMode', 'blocklist', 'mode',
+  ]);
+  const { breakSettings = {}, passwordHash, passwordHint, motivationalQuotes, focusMode, blocklist = [], mode } = data;
 
-  // 記錄封鎖事件
-  try {
-    let domain = displayDomain;
-    if (rawUrl !== 'WHITELIST_BLOCK') {
-      try { domain = new URL('https://' + displayDomain).hostname; } catch { }
-    }
-    chrome.runtime.sendMessage({ type: 'RECORD_BLOCKED', domain });
-  } catch { }
+  $('blocked-domain').textContent = host || '這個網站';
+  if (host) document.title = `${host} 已封鎖 — SiteFocus`;
 
-  // 讀取設定
-  const data = await chrome.storage.local.get(['motivationalQuotes', 'breakSettings', 'passwordHash', 'passwordHint']);
-  const { breakSettings = {}, passwordHash, passwordHint, motivationalQuotes } = data;
+  recordAttempt(host);
+  renderStatus({ focusMode, blocklist, mode, url: originalUrl });
 
-  // 激勵語句
-  const quotes = [
-    '專注是成功的關鍵。',
-    '分心的代價比你想像的更高。',
-    '你的目標比那個網站更重要。',
-    '一次只做一件事，做到最好。',
-    '今天的努力，是明天的成果。',
-    '保持專注，保持前進。',
-    'Stay focused. Stay sharp.',
-    'Your future self will thank you.',
-    'One task at a time.',
-    'Discipline is freedom.',
-  ];
   if (motivationalQuotes !== false) {
-    document.getElementById('blocked-quote').textContent =
-      quotes[Math.floor(Math.random() * quotes.length)];
+    $('blocked-quote').textContent = randomQuote();
   } else {
-    document.getElementById('blocked-quote').style.display = 'none';
+    $('blocked-quote').hidden = true;
   }
 
-  // 返回按鈕
-  document.getElementById('btn-back').addEventListener('click', () => {
+  // ── 返回 ────────────────────────────────────
+  $('btn-back').addEventListener('click', () => {
     if (history.length > 1) history.back();
-    else window.close();
+    else chrome.tabs.update({ url: 'chrome://newtab/' });
   });
 
-  // 暫時解除封鎖
-  const blockType = breakSettings.type || 'cooldown';
-  const snoozeBtn = document.getElementById('btn-snooze');
+  // ── 暫時解除 ────────────────────────────────
+  const snoozeMinutes = clampInt(breakSettings.timedMinutes, 1, 60, 5);
+  let unlockType = breakSettings.type || 'cooldown';
+  // 選了密碼但尚未設定密碼時，改用冷靜計時器，避免永遠無法解除
+  if (unlockType === 'password' && !passwordHash) unlockType = 'cooldown';
 
+  const snoozeBtn = $('btn-snooze');
+  snoozeBtn.textContent = `暫時解除 ${snoozeMinutes} 分鐘`;
   snoozeBtn.addEventListener('click', () => {
-    if (blockType === 'cooldown') {
-      startCooldown(breakSettings.cooldownSeconds ?? 30, breakSettings.timedMinutes ?? 5);
-    } else if (blockType === 'password') {
-      showPasswordArea();
-    } else if (blockType === 'timed') {
-      doSnooze(breakSettings.timedMinutes ?? 5);
-    }
+    if (unlockType === 'cooldown') startCooldown(clampInt(breakSettings.cooldownSeconds, 5, 300, 30));
+    else if (unlockType === 'password') showPasswordArea();
+    else doSnooze();
   });
 
-  // ── 冷靜計時器 ──────────────────────────────
-  function startCooldown(seconds, snoozeMinutes) {
-    const cooldownArea = document.getElementById('cooldown-area');
-    const counter = document.getElementById('cooldown-counter');
-    const confirmBtn = document.getElementById('btn-confirm-snooze');
+  function startCooldown(seconds) {
+    snoozeBtn.hidden = true;
+    $('cooldown-area').hidden = false;
+    const counter = $('cooldown-counter');
+    const bar = $('cooldown-bar');
+    const confirmBtn = $('btn-confirm-snooze');
+    confirmBtn.textContent = `暫時解除 ${snoozeMinutes} 分鐘`;
 
-    snoozeBtn.style.display = 'none';
-    cooldownArea.style.display = 'block';
-
-    let remaining = seconds;
-    counter.textContent = remaining;
-
-    const timer = setInterval(() => {
-      remaining--;
+    const endAt = Date.now() + seconds * 1000;
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
       counter.textContent = remaining;
-      if (remaining <= 0) {
+      bar.style.width = `${((seconds - remaining) / seconds) * 100}%`;
+      if (remaining === 0) {
         clearInterval(timer);
         confirmBtn.disabled = false;
-        confirmBtn.textContent = '確認暫時解除';
+        confirmBtn.focus();
       }
-    }, 1000);
+    };
+    const timer = setInterval(tick, 250);
+    tick();
 
-    confirmBtn.addEventListener('click', () => {
-      doSnooze(snoozeMinutes);
-    });
+    confirmBtn.addEventListener('click', doSnooze, { once: true });
   }
 
-  // ── 密碼輸入 ────────────────────────────────
   function showPasswordArea() {
-    snoozeBtn.style.display = 'none';
-    document.getElementById('password-area').style.display = 'block';
+    snoozeBtn.hidden = true;
+    $('password-area').hidden = false;
+    const input = $('password-input');
+    input.focus();
+
     if (passwordHint) {
-      const hintEl = document.getElementById('password-hint');
-      hintEl.textContent = '提示：' + passwordHint;
-      hintEl.style.display = 'block';
+      $('password-hint').textContent = `提示：${passwordHint}`;
+      $('password-hint').hidden = false;
     }
 
-    document.getElementById('btn-confirm-password').addEventListener('click', async () => {
-      const input = document.getElementById('password-input').value;
-      const hash = await sha256(input);
-      if (hash === passwordHash) {
-        doSnooze(breakSettings.timedMinutes ?? 5);
+    const submit = async () => {
+      if ((await sha256(input.value)) === passwordHash) {
+        doSnooze();
       } else {
-        document.getElementById('password-error').style.display = 'block';
-        document.getElementById('password-input').value = '';
+        $('password-error').hidden = false;
+        input.value = '';
+        input.focus();
       }
-    });
-
-    document.getElementById('password-input').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') document.getElementById('btn-confirm-password').click();
-    });
+    };
+    $('btn-confirm-password').addEventListener('click', submit);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
   }
 
-  // ── 執行解除 ────────────────────────────────
-  function doSnooze(minutes) {
-    chrome.runtime.sendMessage({ type: 'START_SNOOZE', minutes }, () => {
-      // 導回原始網站
-      if (rawUrl && rawUrl !== 'WHITELIST_BLOCK') {
-        try {
-          const decodedUrl = decodeURIComponent(rawUrl);
-          const targetUrl = decodedUrl.startsWith('http') ? decodedUrl : 'https://' + decodedUrl;
-          window.location.href = targetUrl;
-        } catch {
-          history.back();
-        }
-      } else {
-        history.back();
-      }
-    });
-  }
-
-  // ── SHA-256 ──────────────────────────────────
-  async function sha256(text) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(text);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  async function doSnooze() {
+    await chrome.runtime.sendMessage({ type: 'START_SNOOZE', minutes: snoozeMinutes });
+    if (/^https?:\/\//i.test(originalUrl)) window.location.replace(originalUrl);
+    else history.back();
   }
 })();
+
+function readOriginalUrl() {
+  const fromHash = window.location.hash.slice(1);
+  if (fromHash) return fromHash;
+
+  const legacy = new URLSearchParams(window.location.search).get('url') || '';
+  if (!legacy || legacy === 'WHITELIST_BLOCK') return '';
+  const cleaned = legacy.replace(/^\*\./, '').replace(/\*.*$/, '');
+  return /^https?:\/\//i.test(cleaned) ? cleaned : `https://${cleaned}`;
+}
+
+function hostOf(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+function recordAttempt(host) {
+  // 重新整理或上一頁返回封鎖頁時不重複計數
+  const navType = performance.getEntriesByType('navigation')[0]?.type;
+  if (!host || navType === 'reload' || navType === 'back_forward') return;
+  chrome.runtime.sendMessage({ type: 'RECORD_BLOCKED', domain: host }).catch(() => {});
+}
+
+function renderStatus({ focusMode, blocklist, mode, url }) {
+  const el = $('blocked-schedule');
+  let text = '';
+
+  if (focusMode?.isRunning && focusMode.phase === 'focus' && focusMode.endTime > Date.now()) {
+    const minutes = Math.ceil((focusMode.endTime - Date.now()) / 60000);
+    text = `專注時間還剩 ${minutes} 分鐘`;
+  } else if (mode === 'whitelist') {
+    text = '白名單模式：這個網站不在允許清單中';
+  } else if (url) {
+    const matched = blocklist.filter(entry => matchesPattern(url, entry.pattern));
+    if (matched.length && matched.every(entry => entry.schedule?.enabled)) {
+      const ends = matched.map(entry => currentSlotEnd(entry.schedule)).filter(Boolean).sort();
+      if (ends.length) text = `排程封鎖到今天 ${ends[ends.length - 1]}`;
+    }
+  }
+
+  el.textContent = text;
+  el.hidden = !text;
+}
