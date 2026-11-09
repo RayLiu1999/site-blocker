@@ -1,0 +1,64 @@
+/* theme.css — SiteFocus 共用設計 token（番茄計時器色系） */
+
+:root {
+  color-scheme: light dark;
+
+  /* 番茄 */
+  --tomato: #e0352b;
+  --tomato-hover: #c92c23;
+  --tomato-deep: #a3201a;
+  --tomato-glow: #ff6e5a;
+  --flesh: #ffe9e4;
+  --flesh-strong: #ffd5cc;
+
+  /* 蒂頭（休息、成功） */
+  --leaf: #2f8f4e;
+  --leaf-deep: #24733e;
+  --leaf-soft: #e3f3e8;
+
+  /* 中性 */
+  --paper: #fffbfa;
+  --surface: #ffffff;
+  --ink: #2a1513;
+  --ink-soft: #7a5450;
+  --ink-faint: #a8857f;
+  --line: #f1d6d0;
+  --focus-ring: #1f6feb;
+
+  --font-ui: system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  --font-num: ui-rounded, "SF Pro Rounded", "Arial Rounded MT Bold", system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --tomato: #ee4436;
+    --tomato-hover: #ff5a4b;
+    --tomato-deep: #b8261e;
+    --flesh: #3a1a17;
+    --flesh-strong: #4d221e;
+    --leaf: #3fae64;
+    --leaf-deep: #2f8f4e;
+    --leaf-soft: #17301f;
+    --paper: #1a0e0d;
+    --surface: #241412;
+    --ink: #fbe9e6;
+    --ink-soft: #c99f99;
+    --ink-faint: #8f6a64;
+    --line: #3d2320;
+    --focus-ring: #7ab8ff;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+[hidden] { display: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
