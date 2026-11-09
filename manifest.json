@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SiteFocus",
-  "version": "1.0.0",
-  "description": "封鎖分心網站，建立專注習慣。支援排程、Pomodoro 計時、統計報表。",
+  "version": "1.1.0",
+  "description": "封鎖分心網站，用番茄鐘建立專注習慣。支援排程、白名單、統計報表。",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -28,29 +28,37 @@
   "permissions": [
     "declarativeNetRequest",
     "declarativeNetRequestWithHostAccess",
-    "declarativeNetRequestFeedback",
     "storage",
     "alarms",
     "notifications",
-    "tabs",
-    "activeTab"
+    "tabs"
   ],
-  "host_permissions": ["<all_urls>"],
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "css": ["content.css"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
       "run_at": "document_end"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["blocked.html", "icons/*.png"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "blocked.html",
+        "icons/*.png"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
-  ],
-  "declarative_net_request": {
-    "rule_resources": []
-  }
+  ]
 }
